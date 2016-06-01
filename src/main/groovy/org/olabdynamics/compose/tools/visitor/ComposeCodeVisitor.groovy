@@ -32,21 +32,6 @@ class ComposeCodeVisitor extends ClassCodeVisitorSupport{
 		}
 		return null
 	}
-	
-/*	void visitMethod(MethodNode node){
-		super.visitMethod(node)
-		println "visitMethod = " + node
-	}*/
-	
-/*	void visitClassExpression(ClassExpression expression){
-		super.visitClassExpression(expression)
-		println "visitClassExpression = " + expression
-	}*/
-	
-/*	void visitConstantExpression(ConstantExpression expression){
-		super.visitConstantExpression(expression)
-		println "visitConstantExpression = " + expression
-	}*/
 
 	void visitVariableExpression(VariableExpression expression) {
 		super.visitVariableExpression(expression)
