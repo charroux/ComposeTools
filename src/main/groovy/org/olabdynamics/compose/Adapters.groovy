@@ -56,6 +56,26 @@ class JavaServiceAdapter{
 }
 
 @ToString
+class ScriptServiceAdapter{
+	def adapter = BidirectionalAdapter.JavaApplication
+	def file
+}
+
+class DataSource{
+	def driver
+	def url
+	def username
+	def password
+}
+
+@ToString
+class DatabaseAdapter{	
+	def adapter = UnidirectionalAdapter.SQL
+	DataSource dataSource
+	def request
+}
+
+@ToString
 class LoggingAdapter{
 	
 	enum Level { INFO }
