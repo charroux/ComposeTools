@@ -1,6 +1,7 @@
 package org.olabdynamics.compose.tools.visitor
 
 import org.codehaus.groovy.ast.ClassCodeVisitorSupport;
+import org.codehaus.groovy.ast.Variable;
 import org.codehaus.groovy.ast.expr.ArgumentListExpression;
 import org.codehaus.groovy.ast.expr.ConstantExpression;
 import org.codehaus.groovy.ast.expr.Expression
@@ -12,6 +13,7 @@ import org.olabdynamics.compose.Application
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Service
+
 import groovy.util.logging.Slf4j
 
 @Slf4j
@@ -26,8 +28,8 @@ class ComposeCodeVisitor extends ClassCodeVisitorSupport{
 	Application getByName(def applicationName){
 		def application
 		for(int i=0; i<instructions.size(); i++){
-			if(instructions.getAt(i).name == applicationName){
-				return instructions.getAt(i)
+			if(instructions.getAt(i).springBean.name == applicationName){
+				return instructions.getAt(i).springBean
 			}
 		}
 		return null
@@ -97,7 +99,11 @@ class ComposeCodeVisitor extends ClassCodeVisitorSupport{
 	 */
 	void visitMethodCallExpression(MethodCallExpression call){
 			
+		log.info "debut"
+		
 		def method
+		
+		def instruction
 		
 		Expression expression = call.getObjectExpression()
 		if(expression instanceof MethodCallExpression){
@@ -118,10 +124,11 @@ class ComposeCodeVisitor extends ClassCodeVisitorSupport{
 						VariableExpression variableExpression = (VariableExpression)expression
 						def arg = variableExpression.getText()	// event, code1
 						log.info arg + " VariableArgumentExpression"
-						//println 'context : ' + context.getBean(code)
 						if(method == 'compute'){
-							instructions.add(context.getBean(arg))				// arg instanceof Application
-						} 
+							instruction = new Instruction(springBean: context.getBean(arg))		// arg instanceof Application
+						} else if(method == 'receive'){
+							instruction = new Instruction(variable: arg)
+						}
 					}
 				}
 				if(expression instanceof PropertyExpression){
@@ -130,12 +137,18 @@ class ComposeCodeVisitor extends ClassCodeVisitorSupport{
 					if(expression instanceof VariableExpression){
 						VariableExpression variableExpression = (VariableExpression)expression
 						def ar = variableExpression.getText()	// code1
+						if(method == 'send'){
+							instruction = new Instruction(variable: ar)
+						}
 						log.info ar  + " PropertyVariableExpression"
 					}
 					expression = propertyExpression.getProperty()
 					if(expression instanceof ConstantExpression){
 						ConstantExpression constantExpression = (ConstantExpression)expression
 						def value = constantExpression.getText()	// code1.result
+						if(method == 'send'){
+							instruction.property = value							
+						}
 						log.info value + " PropertyValueExpression"
 					}
 				}
@@ -146,7 +159,7 @@ class ComposeCodeVisitor extends ClassCodeVisitorSupport{
 		if(expression instanceof ConstantExpression){
 			ConstantExpression constantExpression = (ConstantExpression)expression
 			method = constantExpression.getText()
-			log.info method	+ " MethodExpression" //runScript
+			log.info method	+ " MethodExpression" //runScript, from, with
 		}
 		
 		expression = call.getArguments()
@@ -159,11 +172,12 @@ class ComposeCodeVisitor extends ClassCodeVisitorSupport{
 					VariableExpression variableExpression = (VariableExpression)expression
 					def arg = variableExpression.getText()	// args, input, database
 					log.info arg  + " VariableArgumentExpression"
-					//println 'context : ' + context.getBean(code)
 					if(method == 'from'){
-						instructions.add(context.getBean(arg))		// arg instanceof EventHandler
+						instruction.springBean = context.getBean(arg)		// arg instanceof EventHandler
+						//instructions.add(context.getBean(arg))		// arg instanceof EventHandler
 					} else if(method == 'to'){
-						instructions.add(context.getBean(arg))		// arg instanceof EventHandler
+						instruction.springBean = context.getBean(arg)		// arg instanceof EventHandler
+						//instructions.add(context.getBean(arg))		// arg instanceof EventHandler
 					}
 					
 				}
@@ -174,18 +188,28 @@ class ComposeCodeVisitor extends ClassCodeVisitorSupport{
 						VariableExpression variableExpression = (VariableExpression)expression
 						def prop = variableExpression.getText()		// event
 						log.info prop + " PropertyVariableExpression"
+						if(method == 'with'){
+							instruction.variable = prop
+						}
 					}
 					expression = propertyExpression.getProperty()
 					if(expression instanceof ConstantExpression){
 						ConstantExpression constantExpression = (ConstantExpression)expression
 						def value = constantExpression.getText() // event.value
 						log.info value + " PropertyValueExpression"
+						if(method == 'with'){
+							instruction.property = value
+						}
 					}
 				}
 			}
 		}
 		
+		if(method=='compute' || method=='with' || method=='from' || method=='to'){
+			instructions.add(instruction)
+		}
 		
+		log.info "fin"
 		
 	}
 	

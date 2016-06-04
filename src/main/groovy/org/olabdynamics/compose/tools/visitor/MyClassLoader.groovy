@@ -13,7 +13,7 @@ class MyClassLoader extends GroovyClassLoader {
 	CodeVisitorSupport visitor 
 	protected CompilationUnit createCompilationUnit(CompilerConfiguration config, CodeSource source) { 
 		CompilationUnit cu = super.createCompilationUnit(config, source) 
-		cu.addPhaseOperation(new CustomSourceOperation(visitor: visitor), Phases.CLASS_GENERATION) 
+		cu.addPhaseOperation(new cpCustomSourceOperation(visitor: visitor), Phases.CLASS_GENERATION) 
 		return cu 
 	} 
 }
