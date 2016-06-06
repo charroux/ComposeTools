@@ -125,9 +125,9 @@ class ComposeCodeVisitor extends ClassCodeVisitorSupport{
 						def arg = variableExpression.getText()	// event, code1
 						log.info arg + " VariableArgumentExpression"
 						if(method == 'compute'){
-							instruction = new Instruction(springBean: context.getBean(arg))		// arg instanceof Application
+							instruction = new Instruction(instruction:'compute', springBean: context.getBean(arg))		// arg instanceof Application
 						} else if(method == 'receive'){
-							instruction = new Instruction(variable: arg)
+							instruction = new Instruction(instruction:'receive', variable: arg)
 						}
 					}
 				}
@@ -138,7 +138,7 @@ class ComposeCodeVisitor extends ClassCodeVisitorSupport{
 						VariableExpression variableExpression = (VariableExpression)expression
 						def ar = variableExpression.getText()	// code1
 						if(method == 'send'){
-							instruction = new Instruction(variable: ar)
+							instruction = new Instruction(instruction:'send', variable: ar)
 						}
 						log.info ar  + " PropertyVariableExpression"
 					}
