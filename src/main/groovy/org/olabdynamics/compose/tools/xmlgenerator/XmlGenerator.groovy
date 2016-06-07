@@ -24,13 +24,21 @@ class XmlGenerator {
 	
 	void generate(){
 		
+		def hashcodes = []
+		
 		instructions.each {
 			if(it.springBean instanceof Application){
 				def xmlForCompute = generateApplication(it)
 				xmls.add(xmlForCompute)
 			} else if(it.springBean instanceof EventHandler){
-				def xmlEvent = generateEventHandler(it)
-				xmls.add(xmlEvent)
+				if(it.hashCode() in hashcodes){
+					def xmlRouter = generateRouter(it)
+					xmls.add(xmlRouter)
+				} else {
+					def xmlEvent = generateEventHandler(it)
+					xmls.add(xmlEvent)
+					hashcodes.add(it.hashCode())
+				}				
 			} 
 		}
 		
@@ -94,7 +102,35 @@ class XmlGenerator {
 			}
 			
 		}
+		
+		def router = beans."*".find { node->	// find a transformer after a compute
+			node.name()=="int:recipient-list-router"
+		}
+		
+
+		if(router != null){
+			
+			println "router = " + router.@"input-channel"
+			def routeChannelName
+			
+			Iterator routes = router.iterator()
+			while(routes.hasNext()){
 				
+				routeChannelName = routes.next().@"channel"
+				
+				println "routes = " + routeChannelName
+				
+				def serviceActivator = beans."*".find { node->	// find a transformer after a compute
+					node.name()=="int:service-activator" && node.@"input-channel"==router.@"input-channel"
+				}
+			
+				println "serviceActivators = " + serviceActivator
+				
+				serviceActivator.@"input-channel" = routeChannelName
+			}
+	
+		}
+		
 		def springContexteAsText = XmlUtil.serialize(beans)
 		
 		//new File('essai.xml').withWriter('utf-8') { writer ->
@@ -168,7 +204,7 @@ class XmlGenerator {
 				"int:header"(name:"messageID", expression:id){ }
 			}
 				 
-			"int:channel"(id:gatewayReplyChannel){ }
+			//"int:channel"(id:gatewayReplyChannel){ }
 			
 		}
 	}
@@ -266,6 +302,40 @@ class XmlGenerator {
 			"int:transformer"(id:"transformer-"+outputChannel+"-id", "input-channel":outputChannel, "output-channel":outputTransformerChannel, expression:transformerExpression){	} 
 		
 			"int:channel"(id:outputTransformerChannel){ }
+		}
+	}
+	
+	def generateRouter(Instruction instruction){
+		def EventHandler eventHandler = instruction.springBean
+		def xml = new StreamingMarkupBuilder()
+		xml.useDoubleQuotes = true
+		if(eventHandler.input != null){
+			if(eventHandler.input.adapter instanceof HttpAdapter){
+				def inputName = instruction.variable
+				return xml.bind(routerContext(inputName))
+			}
+		} 
+	}
+	
+	def routerContext = {
+		String inputName ->
+		def inputChannel = inputName + 'Channel'
+		def clos = {
+	
+			"task:executor"(id:"taskExecutor", "pool-size":"20", "queue-capacity":"20", "rejection-policy":"CALLER_RUNS"){ }
+			
+			"int:recipient-list-router"(id:"router-"+inputChannel+"-id", "input-channel":inputChannel){
+				"int:recipient"(channel:inputChannel + "Route1"){ }
+				"int:recipient"(channel:inputChannel + "Route2"){ }
+			}
+			
+			"int:channel"(id:inputChannel + "Route1"){
+				"int:dispatcher"("task-executor":"taskExecutor"){ }
+			}
+			
+			"int:channel"(id:inputChannel + "Route2"){
+				"int:dispatcher"("task-executor":"taskExecutor"){ }
+			}
 		}
 	}
 }
