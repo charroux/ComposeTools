@@ -12,6 +12,7 @@ class ApplicationToObjectTransformer {
 	
 	Object transform(Application application){
 		log.info "recoit : " + application
+		log.info "retourne : " + application.output.value
 		return application.output.value
 	}
 

@@ -11,10 +11,11 @@ class ObjectToApplicationTransformer {
 	Application application
 	
 	Application transform(Object object){
-		log.info "recoit : " + object
+		log.info "recoit (" + this + ") : " + object
 		Application clonedApplication = application.clone()
 		clonedApplication.output.value = object
 		clonedApplication.state = State.TERMINATED
+		log.info "retourne : " + clonedApplication
 		return clonedApplication
 	}
 

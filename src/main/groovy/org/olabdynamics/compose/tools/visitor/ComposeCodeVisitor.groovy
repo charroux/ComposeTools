@@ -22,6 +22,7 @@ class ComposeCodeVisitor extends ClassCodeVisitorSupport{
 	ApplicationContext context
 	
 	def aggregators = []
+	boolean aggregateInstruction = false
 	
 	def instructions = []
 	
@@ -35,6 +36,20 @@ class ComposeCodeVisitor extends ClassCodeVisitorSupport{
 		return null
 	}
 
+	Application[] getApplicationsInExpression(def expression){
+		def applications = []
+		String[] elements = expression.split(" ")
+		Application application
+		for(String element: elements){
+			element = element.trim()
+			application = this.getByName(element)
+			if(application != null){
+				applications.add(application)
+			}
+		}
+		return applications
+	}
+
 	void visitVariableExpression(VariableExpression expression) {
 		super.visitVariableExpression(expression)
 		log.info "visitVariableExpression = " + expression
@@ -45,7 +60,7 @@ class ComposeCodeVisitor extends ClassCodeVisitorSupport{
 		log.info "visitArgumentlistExpression = " + expression
 	}
 	
-	void visitPropertyExpression(PropertyExpression propertyExpression){
+/*	void visitPropertyExpression(PropertyExpression propertyExpression){
 		
 		super.visitPropertyExpression(propertyExpression)
 		log.info "visitPropertyExpression = " + propertyExpression
@@ -91,7 +106,7 @@ class ComposeCodeVisitor extends ClassCodeVisitorSupport{
 			aggregators.add(aggregator)
 			log.info value 	+ " PropertyConstantExpression"
 		}	
-	}
+	}*/
 
 	
 	/**
@@ -207,7 +222,29 @@ class ComposeCodeVisitor extends ClassCodeVisitorSupport{
 		
 		if(method=='compute' || method=='with' || method=='from' || method=='to'){
 			instructions.add(instruction)
+			if(aggregateInstruction == true){
+				int index = aggregators.size()-1
+				aggregators.get(index).nextInstruction = instruction
+				aggregateInstruction = false
+			}
 		}
+		
+		if(method=="when" && expression instanceof ConstantExpression){
+			ConstantExpression constantExpression = (ConstantExpression)expression
+			def value = constantExpression.getText() // event.value
+			log.info value + " PropertyValueExpression"
+			
+			def applications = this.getApplicationsInExpression(value)
+
+			def aggregator
+			aggregator = new Aggregator(releaseExpression: value, applications: applications)
+			aggregators.add(aggregator)
+			aggregateInstruction = true
+		} else {
+			aggregateInstruction = false
+		}
+		
+		
 		
 		log.info "fin"
 		

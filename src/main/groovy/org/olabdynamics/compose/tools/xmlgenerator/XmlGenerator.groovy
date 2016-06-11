@@ -74,11 +74,15 @@ class XmlGenerator {
 				// connect the aggregator input
 				
 				def applicationName = it.name + 'Output'	// it.name == code1 for compute code1
+				
+				println applicationName
 									
 				def transformer = beans."*".find { node->	// find a transformer after a compute
 					node.name()=="int:transformer" && node.@"input-channel"==applicationName
 				}
 					
+				println transformer
+				
 				transformer.@"output-channel" = aggregator.@"input-channel"	// connect the transformer output to the aggregator input
 				
 				// connect the aggregator output
@@ -89,15 +93,20 @@ class XmlGenerator {
 					node.@"channel"==applicationName || node.@"input-channel"==applicationName
 				}
 				
-				//println applicationTransformerNode
+				println applicationTransformerNode
 				
-				def aggregratorTransformer = beans."*".find { node->	// find the transformer after the aggregator
-					node.name()=="int:transformer" && node.@"input-channel"==aggregator.@"output-channel"
+				if(applicationTransformerNode != null){
+							
+					def aggregratorTransformer = beans."*".find { node->	// find the transformer after the aggregator
+						node.name()=="int:transformer" && node.@"input-channel"==aggregator.@"output-channel"
+					}
+					
+					println aggregratorTransformer
+					
+					applicationTransformerNode.@"input-channel" = aggregratorTransformer.@"output-channel"	// connect the aggregator output
+	
 				}
 				
-				//println aggregratorTransformer
-				
-				applicationTransformerNode.@"input-channel" = aggregratorTransformer.@"output-channel"	// connect the aggregator output
 						
 			}
 			
@@ -143,7 +152,7 @@ class XmlGenerator {
 	
 	def localApplicationContext = {
 		String codeName, String inputName, String expression ->
-		//def inputFileChannel = 'inputFileChannel' + i
+		def id = codeName + 'Channel'
 		def inputChannel = inputName + 'Channel'
 		def outputServiceChannel = codeName + "Output"
 		def outputChannel = codeName + 'OutputChannel'
@@ -152,7 +161,7 @@ class XmlGenerator {
 		def transformerRef = codeName
 		def clos = {
 	
-				"int:service-activator"(id:"service-activator-"+inputChannel+"-id", "input-channel":inputChannel, "output-channel":outputServiceChannel, expression:exp){}
+				"int:service-activator"(id:"service-activator-"+id+"-id", "input-channel":inputChannel, "output-channel":outputServiceChannel, expression:exp){}
 				
 				"int:transformer"(id:"transformer-"+outputServiceChannel+"-id", "input-channel":outputServiceChannel, "output-channel":outputChannel, ref:transformerBean, "method":"transform"){ }
 				
@@ -282,18 +291,62 @@ class XmlGenerator {
 		return xml.bind(aggregatorContext(aggregator))
 	}
 
+	def releaseExpression(String expression, def applicationNames){
+		int i=0
+		def releaseExpression = ""
+		Iterator names = applicationNames.iterator()
+		def name
+		int index
+		while(names.hasNext()){
+			name = names.next()
+			index = expression.indexOf(name) + name.length() + 1
+			expression = expression.substring(index)
+			expression = expression.trim()
+			if(expression.startsWith("terminates")){
+				releaseExpression = releaseExpression + " ([" + i + "].payload instanceof T(org.olabdynamics.compose.Application) AND [" + i + "].payload.state==T(org.olabdynamics.compose.State).TERMINATED) "
+				i++
+				index = expression.indexOf("terminates") + "terminates".length() + 1
+				if(index >= expression.length()){
+					return releaseExpression
+				}
+				expression = expression.substring(index)
+				expression = expression.trim()				
+				if(expression.startsWith("and")){
+					releaseExpression = releaseExpression + " and "
+					index = expression.indexOf("and") + "and".length() + 1
+					expression = expression.substring(index)
+					expression = expression.trim()
+				} else if(expression.startsWith("or")){
+					releaseExpression = releaseExpression + " or "
+					index = expression.indexOf("or") + "or".length() + 1
+					expression = expression.substring(index)
+					expression = expression.trim()
+				}
+				
+			} 
+			
+		}
+		return releaseExpression
+	}
+	
 	def aggregatorContext = {
 		Aggregator aggregator ->
 		def aggregatorName = ""
+		def applicationNames = []
 		aggregator.applications.each{
+			applicationNames.add(it.name)
 			aggregatorName = aggregatorName + it.name
 		}
+		
 		def inputChannel = aggregatorName + "AggregatorInput"
 		def outputChannel = aggregatorName + "AggregatorOutput"
 		def outputTransformerChannel = aggregatorName + "AggregatorOutputTransformer"
+		def releaseExpression = this.releaseExpression(aggregator.releaseExpression, applicationNames)
 		def size = "size()=="  + aggregator.applications.size()
-		def releaseExpression = size + " AND " + "([0].payload instanceof T(org.olabdynamics.compose.Application) AND [0].payload.state==T(org.olabdynamics.compose.State).TERMINATED)"
-		def transformerExpression = "(payload[0] instanceof T(org.olabdynamics.compose.Application) AND payload[0].name=='" + aggregatorName + "') ? payload[0] : payload[1]"
+		releaseExpression = size + " and " + "(" + releaseExpression + ")"
+		//def releaseExpression = size + " AND " + "([0].payload instanceof T(org.olabdynamics.compose.Application) AND [0].payload.state==T(org.olabdynamics.compose.State).TERMINATED)"
+		def nextIntruction = aggregator.nextInstruction.variable
+		def transformerExpression = "(payload[0] instanceof T(org.olabdynamics.compose.Application) AND payload[0].name=='" + nextIntruction + "') ? payload[0] : payload[1]"
 		def clos = {
 	
 			"int:aggregator"(id:"aggregator-"+inputChannel+"-id", "input-channel":inputChannel, "output-channel": outputChannel, "correlation-strategy-expression":"headers['messageID']", "release-strategy-expression":releaseExpression){
@@ -322,19 +375,15 @@ class XmlGenerator {
 		def inputChannel = inputName + 'Channel'
 		def clos = {
 	
-			"task:executor"(id:"taskExecutor", "pool-size":"20", "queue-capacity":"20", "rejection-policy":"CALLER_RUNS"){ }
-			
 			"int:recipient-list-router"(id:"router-"+inputChannel+"-id", "input-channel":inputChannel){
 				"int:recipient"(channel:inputChannel + "Route1"){ }
 				"int:recipient"(channel:inputChannel + "Route2"){ }
 			}
 			
 			"int:channel"(id:inputChannel + "Route1"){
-				"int:dispatcher"("task-executor":"taskExecutor"){ }
 			}
 			
 			"int:channel"(id:inputChannel + "Route2"){
-				"int:dispatcher"("task-executor":"taskExecutor"){ }
 			}
 		}
 	}
