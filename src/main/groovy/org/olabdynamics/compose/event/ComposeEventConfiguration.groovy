@@ -8,7 +8,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-class EventConfiguration {
+class ComposeEventConfiguration {
 	
 	@Bean
 	Application createReInitializedServiceEvent(){
@@ -17,6 +17,15 @@ class EventConfiguration {
 		createReInitializedServiceEvent.input = new Input(type: "org.springframework.context.event.ContextRefreshedEvent", adapter: scriptAdapter)
 		createReInitializedServiceEvent.output = new Output(type: "org.olabdynamics.compose.event.ComposeEvent", adapter: scriptAdapter)
 		return createReInitializedServiceEvent
+	}
+	
+	@Bean
+	Application createIncomingMessageEvent(){
+		def createIncomingMessageEvent = new Application(name: "createIncomingMessageEvent", language: "groovy")
+		def scriptAdapter = new ScriptServiceAdapter(file: 'file:scripts/composeEvent/CreateIncomingMessageEvent.groovy')
+		createIncomingMessageEvent.input = new Input(type: "java.lang.Integer", adapter: scriptAdapter)
+		createIncomingMessageEvent.output = new Output(type: "org.olabdynamics.compose.event.ComposeEvent", adapter: scriptAdapter)
+		return createIncomingMessageEvent
 	}
 
 }

@@ -24,7 +24,7 @@ class XmlGenerator {
 	
 	void generate(){
 		
-		def xmlForEvents = generateEventManagement()
+		def xmlForEvents = generateComposeEventManagement()
 		xmls.add(xmlForEvents)
 		
 		def hashcodes = []
@@ -77,15 +77,11 @@ class XmlGenerator {
 				// connect the aggregator input
 				
 				def applicationName = it.name + 'Output'	// it.name == code1 for compute code1
-				
-				println applicationName
 									
 				def transformer = beans."*".find { node->	// find a transformer after a compute
 					node.name()=="int:transformer" && node.@"input-channel"==applicationName
 				}
 					
-				println transformer
-				
 				transformer.@"output-channel" = aggregator.@"input-channel"	// connect the transformer output to the aggregator input
 				
 				// connect the aggregator output
@@ -96,15 +92,11 @@ class XmlGenerator {
 					node.@"channel"==applicationName || node.@"input-channel"==applicationName
 				}
 				
-				println applicationTransformerNode
-				
 				if(applicationTransformerNode != null){
 							
 					def aggregratorTransformer = beans."*".find { node->	// find the transformer after the aggregator
 						node.name()=="int:transformer" && node.@"input-channel"==aggregator.@"output-channel"
 					}
-					
-					println aggregratorTransformer
 					
 					applicationTransformerNode.@"input-channel" = aggregratorTransformer.@"output-channel"	// connect the aggregator output
 	
@@ -115,33 +107,32 @@ class XmlGenerator {
 			
 		}
 		
-		def router = beans."*".find { node->	// find a transformer after a compute
-			node.name()=="int:recipient-list-router"
+		instructions.each {
+			if(it.springBean instanceof EventHandler){				
+				if(it.hashCode() in hashcodes){
+					def inputName = it.variable + 'Channel'
+					def router = beans."*".find { node->	// find a
+						node.name()=="int:recipient-list-router" && node.@"input-channel"==inputName
+					}
+					if(router != null){	
+						def routeChannelName
+						Iterator routes = router.iterator()
+						while(routes.hasNext()){
+							routeChannelName = routes.next().@"channel"
+							def serviceActivator = beans."*".find { node->	// find a transformer after a compute
+								node.name()=="int:service-activator" && node.@"input-channel"==router.@"input-channel"
+							}
+							if(serviceActivator != null){
+								serviceActivator.@"input-channel" = routeChannelName
+							}
+							
+						}
+					}
+				}
+			}
 		}
 		
-
-		if(router != null){
-			
-			println "router = " + router.@"input-channel"
-			def routeChannelName
-			
-			Iterator routes = router.iterator()
-			while(routes.hasNext()){
-				
-				routeChannelName = routes.next().@"channel"
-				
-				println "routes = " + routeChannelName
-				
-				def serviceActivator = beans."*".find { node->	// find a transformer after a compute
-					node.name()=="int:service-activator" && node.@"input-channel"==router.@"input-channel"
-				}
-			
-				println "serviceActivators = " + serviceActivator
-				
-				serviceActivator.@"input-channel" = routeChannelName
-			}
-	
-		}
+		
 		
 		def springContexteAsText = XmlUtil.serialize(beans)
 		
@@ -153,12 +144,14 @@ class XmlGenerator {
 		
 	}
 	
-	def eventManagementContext = {
+	def composeEventManagementContext = {
 		def clos = {
 			
 			"int:publish-subscribe-channel"(id:"composeEventChannel"){  }
 			
 			"int-event:outbound-channel-adapter"(channel:"composeEventChannel"){  }
+			
+			"int:logging-channel-adapter"(channel:"composeEventChannel", level:"INFO"){  }
 			
 			"int-event:inbound-channel-adapter"(channel:"springContextEventChannel", "event-types":"org.springframework.context.event.ContextRefreshedEvent"){  }
 					
@@ -169,10 +162,10 @@ class XmlGenerator {
 		}
 	}
 	
-	def generateEventManagement(){
+	def generateComposeEventManagement(){
 		def xml = new StreamingMarkupBuilder()
 		xml.useDoubleQuotes = true
-		return xml.bind(eventManagementContext())
+		return xml.bind(composeEventManagementContext())
 	}
 	
 	def localApplicationContext = {
@@ -237,9 +230,16 @@ class XmlGenerator {
 			"int:header-enricher"(id:"header-enricher-"+inputChannel+"-id", "input-channel":inputChannel, "output-channel":outputChannel){
 				"int:header"(name:"messageID", expression:id){ }
 			}
-				 
-			//"int:channel"(id:gatewayReplyChannel){ }
-			
+				
+/*			"int:recipient-list-router"("input-channel":"inputRouterChannel"){
+				"int:recipient"(channel:"executorChannel"){  }
+				"int:recipient"(channel:"inputComposeEventChannel"){  }
+			}
+				
+			"int:transformer"("input-channel":"inputComposeEventChannel", "output-channel":"composeEventChannel"){
+				"int-script:script"(lang:"groovy", location:"#{createIncomingMessageEvent.input.adapter.file}"){  }
+			}*/
+		   		
 		}
 	}
 	
@@ -403,12 +403,20 @@ class XmlGenerator {
 			"int:recipient-list-router"(id:"router-"+inputChannel+"-id", "input-channel":inputChannel){
 				"int:recipient"(channel:inputChannel + "Route1"){ }
 				"int:recipient"(channel:inputChannel + "Route2"){ }
+				"int:recipient"(channel:inputChannel + "ComposeEventRoute"){ }
 			}
 			
 			"int:channel"(id:inputChannel + "Route1"){
 			}
 			
 			"int:channel"(id:inputChannel + "Route2"){
+			}
+			
+			"int:channel"(id:inputChannel + "ComposeEventRoute"){
+			}
+			
+			"int:transformer"("input-channel":inputChannel + "ComposeEventRoute", "output-channel":"composeEventChannel"){
+				"int-script:script"(lang:"groovy", location:"#{createIncomingMessageEvent.input.adapter.file}"){  }
 			}
 		}
 	}

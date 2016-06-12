@@ -1,4 +1,4 @@
 
-import org.olabdynamics.compose.controlbus.ServiceEvent
+import org.olabdynamics.compose.event.ComposeEvent
 
-payload = new ServiceEvent(value: payload.timestamp, state: ServiceEvent.State.SERVICE_REINITIALIZED)
+payload = new ComposeEvent(value: payload.timestamp, state: ComposeEvent.State.SERVICE_REINITIALIZED)
