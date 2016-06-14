@@ -27,5 +27,14 @@ class ComposeEventConfiguration {
 		createIncomingMessageEvent.output = new Output(type: "org.olabdynamics.compose.event.ComposeEvent", adapter: scriptAdapter)
 		return createIncomingMessageEvent
 	}
+	
+	@Bean
+	Application createServiceCallReturnEvent(){
+		def createServiceCallReturnEvent = new Application(name: "createServiceCallReturnEvent", language: "groovy")
+		def scriptAdapter = new ScriptServiceAdapter(file: 'file:scripts/composeEvent/CreateServiceCallReturnEvent.groovy')
+		createServiceCallReturnEvent.input = new Input(type: "java.lang.Integer", adapter: scriptAdapter)
+		createServiceCallReturnEvent.output = new Output(type: "org.olabdynamics.compose.event.ComposeEvent", adapter: scriptAdapter)
+		return createServiceCallReturnEvent
+	}
 
 }

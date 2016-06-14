@@ -81,15 +81,48 @@ class XmlGenerator {
 				def transformer = beans."*".find { node->	// find a transformer after a compute
 					node.name()=="int:transformer" && node.@"input-channel"==applicationName
 				}
-					
-				transformer.@"output-channel" = aggregator.@"input-channel"	// connect the transformer output to the aggregator input
 				
+				def transformerOutput = transformer.@"output-channel"
+				
+				def router = beans."*".find { node->	// find a router after a compute tranformer
+					node.name()=="int:recipient-list-router" && node.@"input-channel"==transformerOutput
+				}
+				
+				def routeChannelName
+				def route
+				Iterator routes = router.iterator()
+				while(routes.hasNext()){
+					route = routes.next()
+					routeChannelName = route.@"channel"
+					if(routeChannelName.contains("ComposeEvent") == false){
+						route.@"channel" = aggregator.@"input-channel"	// connect the route output to the aggregator input
+					}
+				}
+				
+				def routeChannelAggregator = beans."*".find { node->	// find a channel with the router's name
+					node.name()=="int:channel" && node.@"id"==aggregator.@"input-channel"
+				}
+				
+				if(routeChannelAggregator == null){
+				
+					def routeChannel = beans."*".find { node->	// find a channel with the router's name
+						node.name()=="int:channel" && node.@"id"==routeChannelName
+					}
+					
+					routeChannel.@"id" = aggregator.@"input-channel"
+	
+				} else {
+					def parent = routeChannelAggregator.parent()
+					parent.remove(routeChannelAggregator)
+				}
+					
+			
 				// connect the aggregator output
 				
 				applicationName = applicationName + 'Channel'
 				
 				def applicationTransformerNode = beans."*".find { node->	// find the instruction using code1.result
-					node.@"channel"==applicationName || node.@"input-channel"==applicationName
+					node.@"channel"==applicationName || (node.@"input-channel"==applicationName && node.name()!="int:recipient-list-router")
 				}
 				
 				if(applicationTransformerNode != null){
@@ -174,6 +207,7 @@ class XmlGenerator {
 		def inputChannel = inputName + 'Channel'
 		def outputServiceChannel = codeName + "Output"
 		def outputChannel = codeName + 'OutputChannel'
+		def outputRouterChannel = codeName + 'OutputRouteChannel'
 		def exp = expression
 		def transformerBean = codeName + "TransformerBean"
 		def transformerRef = codeName
@@ -186,7 +220,27 @@ class XmlGenerator {
 				"bean"(id:transformerBean, class:"org.olabdynamics.compose.tools.code.ObjectToApplicationTransformer"){
 					"property"(name:"application", ref:transformerRef){ }
 				}
-		//	}
+				
+				/*"int:publish-subscribe-channel"(id:outputChannel){  }
+				
+				"int:transformer"("input-channel":outputChannel, "output-channel":"composeEventChannel"){
+					"int-script:script"(lang:"groovy", location:"#{createServiceCallReturnEvent.input.adapter.file}"){  }
+				}*/
+				
+				"int:recipient-list-router"(id:"router-"+ id + "-event-id", "input-channel":outputChannel){
+					"int:recipient"(channel:outputRouterChannel){  }
+					"int:recipient"(channel:codeName + "ComposeEventRoute"){  }
+				}
+				
+				"int:channel"(id:outputRouterChannel){
+				}
+				
+				"int:channel"(id:codeName + "ComposeEventRoute"){
+				}
+				
+				"int:transformer"("input-channel":codeName + "ComposeEventRoute", "output-channel":"composeEventChannel"){
+					"int-script:script"(lang:"groovy", location:"#{createServiceCallReturnEvent.input.adapter.file}"){  }
+				}
 		
 		}
 	}
