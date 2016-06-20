@@ -121,29 +121,66 @@ class ComposeCodeVisitor extends ClassCodeVisitorSupport{
 		def instruction
 		
 		Expression expression = call.getObjectExpression()
+		
 		if(expression instanceof MethodCallExpression){
 			MethodCallExpression methodExpression = (MethodCallExpression)expression
 			expression = methodExpression.getMethod()
 			if(expression instanceof ConstantExpression){
 				ConstantExpression constantExpression = (ConstantExpression)expression
 				method = constantExpression.getText() 
-				log.info method	+ " MethodExpression"	// receive, compute, send
+				log.info method	+ " from ConstantExpression"	// from
 			}
+			expression = methodExpression.getObjectExpression()
+			if(expression instanceof MethodCallExpression){
+				MethodCallExpression methodExp = (MethodCallExpression)expression
+				expression = methodExp.getArguments()
+				if(expression instanceof ArgumentListExpression){
+					ArgumentListExpression argumentListExpression = (ArgumentListExpression)expression
+					Iterator<Expression> args = argumentListExpression.getExpressions().iterator()
+					def i = 0
+					while(args.hasNext()){
+						expression = args.next()
+						if(expression instanceof VariableExpression){
+							VariableExpression variableExpression = (VariableExpression)expression
+							def arg = variableExpression.getText()	// incomingMessageEvent
+							log.info arg + " incomingMessageEvent VariableArgumentExpression " + i
+							if(method == 'from'){
+								instruction = new Instruction(variable: arg)
+							}
+							i++
+						}
+					}
+				}
+				expression = methodExp.getMethod()
+				if(expression instanceof ConstantExpression){
+					ConstantExpression constantExpression = (ConstantExpression)expression
+					method = constantExpression.getText()
+					log.info method	+ " receive ConstantExpression"	// receive
+					if(method == 'receive'){
+						instruction.instruction = 'receive'
+					}
+				}
+			}
+						
 			expression = methodExpression.getArguments()
 			if(expression instanceof ArgumentListExpression){
 				ArgumentListExpression argumentListExpression = (ArgumentListExpression)expression
 				Iterator<Expression> args = argumentListExpression.getExpressions().iterator()
+				def i = 0
 				while(args.hasNext()){
 					expression = args.next()
 					if(expression instanceof VariableExpression){
 						VariableExpression variableExpression = (VariableExpression)expression
-						def arg = variableExpression.getText()	// event, code1
-						log.info arg + " VariableArgumentExpression"
-						if(method == 'compute'){
+						def arg = variableExpression.getText()	// event, code1, composeEvents
+						log.info arg + " composeEvents VariableArgumentExpression " + i
+						i++
+						if(instruction!=null && instruction.instruction=='receive'){
+							instruction.springBean = context.getBean(arg)
+						} else if(method == 'compute'){
 							instruction = new Instruction(instruction:'compute', springBean: context.getBean(arg))		// arg instanceof Application
 						} else if(method == 'receive'){
 							instruction = new Instruction(instruction:'receive', variable: arg)
-						}
+						} 
 					}
 				}
 				if(expression instanceof PropertyExpression){
@@ -162,7 +199,7 @@ class ComposeCodeVisitor extends ClassCodeVisitorSupport{
 						ConstantExpression constantExpression = (ConstantExpression)expression
 						def value = constantExpression.getText()	// code1.result
 						if(method == 'send'){
-							instruction.property = value							
+							instruction.variableProperty = value							
 						}
 						log.info value + " PropertyValueExpression"
 					}
@@ -174,19 +211,21 @@ class ComposeCodeVisitor extends ClassCodeVisitorSupport{
 		if(expression instanceof ConstantExpression){
 			ConstantExpression constantExpression = (ConstantExpression)expression
 			method = constantExpression.getText()
-			log.info method	+ " MethodExpression" //runScript, from, with
+			log.info method	+ " with MethodExpression" //runScript, from, with
 		}
 		
 		expression = call.getArguments()
 		if(expression instanceof ArgumentListExpression){
 			ArgumentListExpression argumentListExpression = (ArgumentListExpression)expression
 			Iterator<Expression> args = argumentListExpression.getExpressions().iterator()
+			def i = 0
 			while(args.hasNext()){
 				expression = args.next()
 				if(expression instanceof VariableExpression){
 					VariableExpression variableExpression = (VariableExpression)expression
 					def arg = variableExpression.getText()	// args, input, database
-					log.info arg  + " VariableArgumentExpression"
+					log.info arg  + " VariableArgumentExpression " + i
+					i++
 					if(method == 'from'){
 						instruction.springBean = context.getBean(arg)		// arg instanceof EventHandler
 						//instructions.add(context.getBean(arg))		// arg instanceof EventHandler
@@ -204,7 +243,7 @@ class ComposeCodeVisitor extends ClassCodeVisitorSupport{
 						def prop = variableExpression.getText()		// event
 						log.info prop + " PropertyVariableExpression"
 						if(method == 'with'){
-							instruction.variable = prop
+							instruction.with = prop
 						}
 					}
 					expression = propertyExpression.getProperty()
@@ -213,8 +252,15 @@ class ComposeCodeVisitor extends ClassCodeVisitorSupport{
 						def value = constantExpression.getText() // event.value
 						log.info value + " PropertyValueExpression"
 						if(method == 'with'){
-							instruction.property = value
+							instruction.withProperty = value
 						}
+					}
+				} else if(expression instanceof ConstantExpression){
+					ConstantExpression constantExpression = (ConstantExpression)expression
+					def m = constantExpression.getText()
+					log.info m	+ " incomingMessageEvent.state=INCOMING_MESSAGE ConstantExpression" // receive event with constantExpression
+					if(method == 'with'){
+						instruction.with = m
 					}
 				}
 			}

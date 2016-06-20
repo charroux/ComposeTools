@@ -16,7 +16,8 @@ enum UnidirectionalAdapter{
 	TCP,
 	AMQP,
 	MQTT,
-	WebSocket
+	WebSocket,
+	ComposeEvent
 }
 
 enum BidirectionalAdapter{
@@ -82,4 +83,11 @@ class LoggingAdapter{
 	
 	def adapter = UnidirectionalAdapter.Logging
 	def level = Level.INFO
+}
+
+@ToString
+class ComposeEventAdapter{
+	
+	def adapter = UnidirectionalAdapter.ComposeEvent
+	
 }

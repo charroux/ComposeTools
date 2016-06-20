@@ -1,5 +1,6 @@
 package org.olabdynamics.compose.tools.xmlgenerator
 
+import groovy.util.logging.Slf4j;
 import groovy.xml.QName
 import groovy.xml.StreamingMarkupBuilder
 import groovy.xml.XmlUtil
@@ -14,6 +15,7 @@ import org.olabdynamics.compose.tools.visitor.Aggregator
 import org.olabdynamics.compose.tools.visitor.Instruction
 import org.springframework.context.ApplicationContext;
 
+@Slf4j
 class XmlGenerator {
 	
 	def xmlSpringContent
@@ -74,19 +76,27 @@ class XmlGenerator {
 			
 			it.applications.each {	
 				
+				log.info "application to aggregate: " + it
+				
 				// connect the aggregator input
 				
 				def applicationName = it.name + 'Output'	// it.name == code1 for compute code1
 									
+				log.info "application output channel: " + applicationName
+				
 				def transformer = beans."*".find { node->	// find a transformer after a compute
 					node.name()=="int:transformer" && node.@"input-channel"==applicationName
 				}
 				
+				log.info "transformer after the compute: " + transformer
+				
 				def transformerOutput = transformer.@"output-channel"
 				
-				def router = beans."*".find { node->	// find a router after a compute tranformer
+				def router = beans."*".find { node->	// find a router after a compute transformer
 					node.name()=="int:recipient-list-router" && node.@"input-channel"==transformerOutput
 				}
+				
+				log.info "router after the transformer: " + router
 				
 				def routeChannelName
 				def route
@@ -99,9 +109,13 @@ class XmlGenerator {
 					}
 				}
 				
-				def routeChannelAggregator = beans."*".find { node->	// find a channel with the router's name
+				log.info "router output connected to the aggregator input: " + router
+				
+				def routeChannelAggregator = beans."*".find { node->	
 					node.name()=="int:channel" && node.@"id"==aggregator.@"input-channel"
 				}
+				
+				log.info "Channel with id = aggregator input(" + aggregator.@"input-channel" + "): " + routeChannelAggregator
 				
 				if(routeChannelAggregator == null){
 				
@@ -109,9 +123,16 @@ class XmlGenerator {
 						node.name()=="int:channel" && node.@"id"==routeChannelName
 					}
 					
+					log.info "Channel with id = aggregator input(" + routeChannelName + "): " + routeChannel
+					
 					routeChannel.@"id" = aggregator.@"input-channel"
+					
+					log.info "Channel changed with id = aggregator input(" + routeChannelName + "): " + routeChannel
 	
 				} else {
+				
+					log.info "Channel deleted: " + routeChannelAggregator
+					
 					def parent = routeChannelAggregator.parent()
 					parent.remove(routeChannelAggregator)
 				}
@@ -121,9 +142,13 @@ class XmlGenerator {
 				
 				applicationName = applicationName + 'Channel'
 				
+				log.info "Aggregator output must be connected to: " + applicationName
+				
 				def applicationTransformerNode = beans."*".find { node->	// find the instruction using code1.result
 					node.@"channel"==applicationName || (node.@"input-channel"==applicationName && node.name()!="int:recipient-list-router")
 				}
+				
+				log.info "Channel to be connected: " + applicationTransformerNode				
 				
 				if(applicationTransformerNode != null){
 							
@@ -131,7 +156,12 @@ class XmlGenerator {
 						node.name()=="int:transformer" && node.@"input-channel"==aggregator.@"output-channel"
 					}
 					
+					log.info "Transformer after the aggregator: " + aggregratorTransformer
+					
 					applicationTransformerNode.@"input-channel" = aggregratorTransformer.@"output-channel"	// connect the aggregator output
+					
+					log.info "Aggregator changed: " + applicationTransformerNode
+					
 	
 				}
 				
@@ -247,7 +277,7 @@ class XmlGenerator {
 	
 	def generateApplication(Instruction instruction){
 		//def fileName = 'localApplicationContext.xml'
-		def inputName = instruction.variable
+		def inputName = instruction.with
 		def Application application = instruction.springBean
 		def applicationName = application.name
 		def methodName = application.input.adapter.method
