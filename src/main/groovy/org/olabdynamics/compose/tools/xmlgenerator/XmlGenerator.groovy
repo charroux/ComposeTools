@@ -22,47 +22,111 @@ class XmlGenerator {
 	def instructions
 	def aggregators
 
-	def xmls = []
+	//def xmls = []
 	
 	void generate(){
+
+		BufferedWriter bufferedWriter = new BufferedWriter(new FileWriter(new File(xmlSpringContent)))
+		bufferedWriter.writeLine('<beans xmlns="http://www.springframework.org/schema/beans" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:int="http://www.springframework.org/schema/integration" xmlns:int-http="http://www.springframework.org/schema/integration/http" xmlns:int-groovy="http://www.springframework.org/schema/integration/groovy" xmlns:context="http://www.springframework.org/schema/context" xmlns:task="http://www.springframework.org/schema/task" xmlns:jdbc="http://www.springframework.org/schema/jdbc" xmlns:int-jdbc="http://www.springframework.org/schema/integration/jdbc" xmlns:int-script="http://www.springframework.org/schema/integration/scripting" xmlns:int-event="http://www.springframework.org/schema/integration/event" xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd http://www.springframework.org/schema/task http://www.springframework.org/schema/task/spring-task.xsd http://www.springframework.org/schema/integration http://www.springframework.org/schema/integration/spring-integration-4.2.xsd http://www.springframework.org/schema/integration/jdbc http://www.springframework.org/schema/integration/jdbc/spring-integration-jdbc-4.2.xsd http://www.springframework.org/schema/jdbc http://www.springframework.org/schema/jdbc/spring-jdbc-4.2.xsd http://www.springframework.org/schema/integration/http http://www.springframework.org/schema/integration/http/spring-integration-http-4.2.xsd http://www.springframework.org/schema/integration/groovy http://www.springframework.org/schema/integration/groovy/spring-integration-groovy-4.2.xsd http://www.springframework.org/schema/integration/scripting http://www.springframework.org/schema/integration/scripting/spring-integration-scripting-4.2.xsd http://www.springframework.org/schema/integration/event http://www.springframework.org/schema/integration/event/spring-integration-event-4.2.xsd">')
 		
 		def xmlForEvents = generateComposeEventManagement()
-		xmls.add(xmlForEvents)
 		
-		def hashcodes = []
+		bufferedWriter.writeLine(xmlForEvents.toString())
 		
-		instructions.each {
-			if(it.springBean instanceof Application){
-				def xmlForCompute = generateApplication(it)
-				xmls.add(xmlForCompute)
-			} else if(it.springBean instanceof EventHandler){
-				if(it.hashCode() in hashcodes){
-					def xmlRouter = generateRouter(it)
-					xmls.add(xmlRouter)
-				} else {
-					def xmlEvent = generateEventHandler(it)
-					xmls.add(xmlEvent)
-					hashcodes.add(it.hashCode())
-				}				
-			} 
+		//xmls.add(xmlForEvents)
+		
+		
+		
+		//def hashcodes = []
+		
+		def receiveEventHandlers = sortReceiveEventHandlers(instructions)
+		
+		receiveEventHandlers.each{
+			
+			def xmlEvent = generateReceiveEventHandler(it)	// input events
+			
+			bufferedWriter.writeLine(xmlEvent.toString())
+			
+			//xmls.add(xmlEvent)
+			
 		}
 		
+		def instructionsForReceiveEventHandlersRouter = sortInstructionsByReceiveEventHandler(instructions)	// 2 dimensions array, 1 event par dimension
+		
+		instructionsForReceiveEventHandlersRouter.each{		
+			
+			def xmlForEventHandlerRouter = generateRouterForEventHandlers(it)
+			
+			bufferedWriter.writeLine(xmlForEventHandlerRouter.toString())
+			
+			//xmls.add(xmlForEventHandlerRouter)
+				
+		}
+			
+			
+			/*def routersForEventHandlersVariable = sortInstructionsByEventHandlerVariable(it)	// 2 dimensions array, 1 variable per dimension
+			
+			for(int i=0; i<routersForEventHandlersVariable.size(); i++){
+				
+				def xmlForEventHandlerRouter = generateRouterForEventHandlersVariable(routersForEventHandlersVariable[i])
+				xmls.add(xmlForEventHandlerRouter)
+				
+			}	*/
+		
+		
+		def applications = sortInstructionsByApplication(instructions)
+		
+		applications.each {
+			def xmlForCompute = generateApplication(it, instructions, aggregators)
+			bufferedWriter.writeLine(xmlForCompute.toString())	
+			//xmls.add(xmlForCompute)
+		}
+				
 		aggregators.each {
-			def xmlForAggregator = generateAggregator(it)
-			xmls.add(xmlForAggregator)
+			def xmlForAggregator = generateAggregator(it, instructions)
+			
+			bufferedWriter.writeLine(xmlForAggregator.toString())
+			
+			//xmls.add(xmlForAggregator)
 		}
 		
-		//new File('essai.xml').withWriter('utf-8') { writer ->
+		def routersForSendEventHandlers = sortInstructionsBySendEventHandler(instructions)	// 2 dimensions array, 1 event par dimension
+		
+		routersForSendEventHandlers.each{
+			
+			def xmlEvent = generateSendEventHandler(it)	// output events
+			
+			bufferedWriter.writeLine(xmlEvent.toString())
+			
+			//xmls.add(xmlEvent)
+			
+		}
+		
+		/*BufferedWriter bufferedWriter = new BufferedWriter(new FileWriter(new File(xmlSpringContent)))
+		bufferedWriter.writeLine('<beans xmlns="http://www.springframework.org/schema/beans" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:int="http://www.springframework.org/schema/integration" xmlns:int-http="http://www.springframework.org/schema/integration/http" xmlns:int-groovy="http://www.springframework.org/schema/integration/groovy" xmlns:context="http://www.springframework.org/schema/context" xmlns:task="http://www.springframework.org/schema/task" xmlns:jdbc="http://www.springframework.org/schema/jdbc" xmlns:int-jdbc="http://www.springframework.org/schema/integration/jdbc" xmlns:int-script="http://www.springframework.org/schema/integration/scripting" xmlns:int-event="http://www.springframework.org/schema/integration/event" xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd http://www.springframework.org/schema/task http://www.springframework.org/schema/task/spring-task.xsd http://www.springframework.org/schema/integration http://www.springframework.org/schema/integration/spring-integration-4.2.xsd http://www.springframework.org/schema/integration/jdbc http://www.springframework.org/schema/integration/jdbc/spring-integration-jdbc-4.2.xsd http://www.springframework.org/schema/jdbc http://www.springframework.org/schema/jdbc/spring-jdbc-4.2.xsd http://www.springframework.org/schema/integration/http http://www.springframework.org/schema/integration/http/spring-integration-http-4.2.xsd http://www.springframework.org/schema/integration/groovy http://www.springframework.org/schema/integration/groovy/spring-integration-groovy-4.2.xsd http://www.springframework.org/schema/integration/scripting http://www.springframework.org/schema/integration/scripting/spring-integration-scripting-4.2.xsd http://www.springframework.org/schema/integration/event http://www.springframework.org/schema/integration/event/spring-integration-event-4.2.xsd">')
+		xmls.each{
+			bufferedWriter.writeLine(it.toString())
+		}*/
+		bufferedWriter.writeLine('</beans>')
+		bufferedWriter.flush()
+		bufferedWriter.close()
+		
+		// usefull to write line by line
+		String xmlContext = new File(xmlSpringContent).text		
+		String springContexteAsText = XmlUtil.serialize(xmlContext)
 		new File(xmlSpringContent).withWriter('utf-8') { writer ->
+			writer.writeLine springContexteAsText
+		}
+		
+/*		new File(xmlSpringContent).withWriter('utf-8') { writer ->
 			writer.writeLine '<beans xmlns="http://www.springframework.org/schema/beans" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:int="http://www.springframework.org/schema/integration" xmlns:int-http="http://www.springframework.org/schema/integration/http" xmlns:int-groovy="http://www.springframework.org/schema/integration/groovy" xmlns:context="http://www.springframework.org/schema/context" xmlns:task="http://www.springframework.org/schema/task" xmlns:jdbc="http://www.springframework.org/schema/jdbc" xmlns:int-jdbc="http://www.springframework.org/schema/integration/jdbc" xmlns:int-script="http://www.springframework.org/schema/integration/scripting" xmlns:int-event="http://www.springframework.org/schema/integration/event" xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd http://www.springframework.org/schema/task http://www.springframework.org/schema/task/spring-task.xsd http://www.springframework.org/schema/integration http://www.springframework.org/schema/integration/spring-integration-4.2.xsd http://www.springframework.org/schema/integration/jdbc http://www.springframework.org/schema/integration/jdbc/spring-integration-jdbc-4.2.xsd http://www.springframework.org/schema/jdbc http://www.springframework.org/schema/jdbc/spring-jdbc-4.2.xsd http://www.springframework.org/schema/integration/http http://www.springframework.org/schema/integration/http/spring-integration-http-4.2.xsd http://www.springframework.org/schema/integration/groovy http://www.springframework.org/schema/integration/groovy/spring-integration-groovy-4.2.xsd http://www.springframework.org/schema/integration/scripting http://www.springframework.org/schema/integration/scripting/spring-integration-scripting-4.2.xsd http://www.springframework.org/schema/integration/event http://www.springframework.org/schema/integration/event/spring-integration-event-4.2.xsd">' 
 			xmls.each{
 				writer.writeLine it.toString()
 			}
 			writer.writeLine '</beans>'
-		}
+		}*/
 		
-		//String xmlContext = new File('essai.xml').text
-		String xmlContext = new File(xmlSpringContent).text
+/*		String xmlContext = new File(xmlSpringContent).text
 		
 		String springContext = XmlUtil.serialize(xmlContext)
 		
@@ -92,11 +156,11 @@ class XmlGenerator {
 				
 				def transformerOutput = transformer.@"output-channel"
 				
-				def router = beans."*".find { node->	// find a router after a compute transformer
+				def router = beans."*".find { node->	// find a router after a compute transformer: to route the result to the Compose Event handler
 					node.name()=="int:recipient-list-router" && node.@"input-channel"==transformerOutput
 				}
 				
-				log.info "router after the transformer: " + router
+				log.info "router after the transformer (to route the result to the Compose Event handler): " + router
 				
 				def routeChannelName
 				def route
@@ -162,40 +226,15 @@ class XmlGenerator {
 					
 					log.info "Aggregator changed: " + applicationTransformerNode
 					
-	
-				}
-				
-						
-			}
-			
+				}						
+			}			
 		}
 		
-		instructions.each {
-			if(it.springBean instanceof EventHandler){				
-				if(it.hashCode() in hashcodes){
-					def inputName = it.variable + 'Channel'
-					def router = beans."*".find { node->	// find a
-						node.name()=="int:recipient-list-router" && node.@"input-channel"==inputName
-					}
-					if(router != null){	
-						def routeChannelName
-						Iterator routes = router.iterator()
-						while(routes.hasNext()){
-							routeChannelName = routes.next().@"channel"
-							def serviceActivator = beans."*".find { node->	// find a transformer after a compute
-								node.name()=="int:service-activator" && node.@"input-channel"==router.@"input-channel"
-							}
-							if(serviceActivator != null){
-								serviceActivator.@"input-channel" = routeChannelName
-							}
-							
-						}
-					}
-				}
-			}
-		}
+		// adjust the service activator input to the routes:
+		// - The route to the compose event related to the service call event
+		// - the route to the services (in the case of an event routed  to many services)
 		
-		
+		log.info "Adjust the service activator input according to the routes"
 		
 		def springContexteAsText = XmlUtil.serialize(beans)
 		
@@ -203,8 +242,114 @@ class XmlGenerator {
 		new File(xmlSpringContent).withWriter('utf-8') { writer ->
 			writer.writeLine springContexteAsText
 		}
+*/		
 		
+	}
+	
+	def Instruction[] sortReceiveEventHandlers(def instructions){
 		
+		def eventHandlers = []
+		
+		instructions.each {
+			
+			if(it.springBean instanceof EventHandler && it.instruction=="receive"){
+				
+				int i=0
+				while(i<eventHandlers.size() && eventHandlers.get(i).springBean!=it.springBean){
+					i++
+				}
+				
+				if(i == eventHandlers.size()){
+					eventHandlers.add(it)
+				}
+				
+			}
+			
+		}
+		
+		return eventHandlers
+	}
+	
+	def Instruction[][] sortInstructionsByReceiveEventHandler(def instructions){
+		
+		def routersForEventHandlers = [][]
+		
+		instructions.each {
+			
+			if(it.springBean instanceof EventHandler && it.instruction=="receive"){
+				
+				int i=0
+				boolean newHandler = true
+				
+				while(i<routersForEventHandlers.size() && newHandler==true){
+					if(routersForEventHandlers[i].size()>0 && it.springBean==routersForEventHandlers[i][0].springBean){
+						routersForEventHandlers[i].add(it)
+						newHandler = false
+					}
+					i++
+				}
+				
+				if(newHandler == true){
+					def instructs = []
+					instructs.add(it)
+					routersForEventHandlers.add(instructs)
+				}
+			}
+		}
+		
+		return routersForEventHandlers
+	}
+	
+	def Instruction[] sortInstructionsBySendEventHandler(def instructions){
+	
+		def sends = []
+		
+		instructions.each {
+			if(it.instruction == "send"){
+				sends.add(it)
+			}
+		}	
+		return sends
+	}
+	
+	def Instruction[] sortInstructionsByApplication(def instructions){
+		
+		def applications = []
+		
+		instructions.each {
+			if(it.springBean instanceof Application){
+				applications.add(it)
+			}
+		}
+		
+		return applications
+		
+	}
+	
+	def Instruction[][] sortInstructionsByEventHandlerVariable(def instructions){
+		
+		def sortedInstructions = instructions.toSorted { a, b -> a.variable <=> b.variable }
+		
+		def sortedInstructionsByVariable = [][]
+		def instructs = []
+		sortedInstructionsByVariable.add(instructs)
+		
+		int i = 0
+		def variable = sortedInstructions[0].variable
+		
+		sortedInstructions.each {
+			if(it.variable == variable){
+				instructs = sortedInstructionsByVariable[i]
+				instructs.add(it)
+			} else {
+				instructs = []
+				instructs.add(it)
+				sortedInstructionsByVariable.add(instructs)
+				i++
+			}
+		} 
+		
+		return sortedInstructionsByVariable
 	}
 	
 	def composeEventManagementContext = {
@@ -232,15 +377,61 @@ class XmlGenerator {
 	}
 	
 	def localApplicationContext = {
-		String codeName, String inputName, String expression ->
-		def id = codeName + 'Channel'
-		def inputChannel = inputName + 'Channel'
-		def outputServiceChannel = codeName + "Output"
-		def outputChannel = codeName + 'OutputChannel'
-		def outputRouterChannel = codeName + 'OutputRouteChannel'
+		Instruction instruction, def instructions, def aggregators ->
+		
+		def inputName = instruction.with
+		//def Application application = instruction.springBean
+		def applicationName = instruction.springBean.name
+		def methodName = instruction.springBean.input.adapter.method
+		JavaServiceAdapter javaServiceAdapter = (JavaServiceAdapter)instruction.springBean.input.adapter
+		String className = javaServiceAdapter.javaClass
+		className = className.substring(className.lastIndexOf('.')+1)
+		className = className.substring(0,1).toLowerCase() + className.substring(1)
+		def expression = '@' + className + '.' + methodName + '(payload)'
+			
+		int i=0
+		while(i<instructions.size() && instructions.get(i).variable!=instruction.with){
+			i++
+		}
+		
+		def instructionToConnectToTheInput = instructions.get(i)
+		
+		i=0
+		while(i<aggregators.size() && aggregators.get(i).releaseExpression.contains(instruction.springBean.name)==false){
+			i++
+		}
+		
+		def aggregatorName = ""
+		def applicationNames = []
+		
+		aggregators.get(i).applications.each{
+			applicationNames.add(it.name)
+			aggregatorName = aggregatorName + it.name	
+		}
+		
+		def outputRouterChannel = aggregatorName + "AggregatorInput"
+		
+		instruction.springIntegrationOutputChannel = outputRouterChannel
+		instruction.springIntegrationOutputBeanId = outputRouterChannel
+	
+		aggregators.get(i).springIntegrationInputChannel = outputRouterChannel
+		
+		/*def aggregator
+		while(i<aggregators.size()){
+			aggregator
+			
+			i++
+		}*/
+		
+		def id = applicationName + 'Channel'
+		//def inputChannel = inputName + 'Channel'
+		def inputChannel = instructionToConnectToTheInput.springIntegrationOutputChannel
+		def outputServiceChannel = applicationName + "Output"
+		def outputChannel = applicationName + 'OutputChannel'
+		//def outputRouterChannel = applicationName + 'OutputRouteChannel'
 		def exp = expression
-		def transformerBean = codeName + "TransformerBean"
-		def transformerRef = codeName
+		def transformerBean = applicationName + "TransformerBean"
+		def transformerRef = applicationName
 		def clos = {
 	
 				"int:service-activator"(id:"service-activator-"+id+"-id", "input-channel":inputChannel, "output-channel":outputServiceChannel, expression:exp){}
@@ -251,33 +442,34 @@ class XmlGenerator {
 					"property"(name:"application", ref:transformerRef){ }
 				}
 				
-				/*"int:publish-subscribe-channel"(id:outputChannel){  }
-				
-				"int:transformer"("input-channel":outputChannel, "output-channel":"composeEventChannel"){
-					"int-script:script"(lang:"groovy", location:"#{createServiceCallReturnEvent.input.adapter.file}"){  }
-				}*/
-				
 				"int:recipient-list-router"(id:"router-"+ id + "-event-id", "input-channel":outputChannel){
 					"int:recipient"(channel:outputRouterChannel){  }
-					"int:recipient"(channel:codeName + "ComposeEventRoute"){  }
+					"int:recipient"(channel:applicationName + "ComposeEventRoute"){  }
 				}
 				
-				"int:channel"(id:outputRouterChannel){
+		/*		"int:channel"(id:outputRouterChannel){		already added by the aggregator
+				}
+		*/		
+				"int:channel"(id:applicationName + "ComposeEventRoute"){
 				}
 				
-				"int:channel"(id:codeName + "ComposeEventRoute"){
-				}
-				
-				"int:transformer"("input-channel":codeName + "ComposeEventRoute", "output-channel":"composeEventChannel"){
+				"int:transformer"("input-channel":applicationName + "ComposeEventRoute", "output-channel":"composeEventChannel"){
 					"int-script:script"(lang:"groovy", location:"#{createServiceCallReturnEvent.input.adapter.file}"){  }
 				}
 		
 		}
 	}
 	
-	def generateApplication(Instruction instruction){
-		//def fileName = 'localApplicationContext.xml'
-		def inputName = instruction.with
+	def generateApplication(Instruction instruction, def instructions, def aggregators){
+		if(instruction.springBean.input.adapter instanceof JavaServiceAdapter){
+			def xml = new StreamingMarkupBuilder()
+			xml.useDoubleQuotes = true
+			return xml.bind(localApplicationContext(instruction, instructions, aggregators))
+		} else {
+			def message = instruction.springBean.input.adapter + ' is not supported yet.'
+			throw new CompilationException(message)
+		}
+		/*def inputName = instruction.with
 		def Application application = instruction.springBean
 		def applicationName = application.name
 		def methodName = application.input.adapter.method
@@ -293,14 +485,18 @@ class XmlGenerator {
 		} else {
 			def message = application.input.adapter + ' is not supported yet.'
 			throw new CompilationException(message)
-		}
+		}*/
 	}
 	
 	def inputHttpAdapterContext = {
-		String inputName, String outputName ->
+		Instruction instruction ->
+		def inputName = instruction.springBean.name
+		//def outputName = instruction.variable
 		def inputChannel = inputName + 'InputChannel'
 		def gatewayReplyChannel = inputName + "ReplyChannel"
-		def outputChannel = outputName + "Channel"
+		def outputChannel = inputName + "OutputChannel"
+		instruction.springIntegrationOutputChannel = outputChannel
+		instruction.springIntegrationOutputBeanId = "header-enricher-"+inputChannel+"-id"
 		def serviceInterface = "myservice." + inputName.substring(0, 1).toUpperCase() + inputName.substring(1) + "Gateway"
 		def id = "headers['id'].toString()"
 		def clos = {
@@ -311,7 +507,7 @@ class XmlGenerator {
 			
 			"int:channel"(id:inputChannel){ }
 			
-			"int:header-enricher"(id:"header-enricher-"+inputChannel+"-id", "input-channel":inputChannel, "output-channel":outputChannel){
+			"int:header-enricher"(id:instruction.springIntegrationOutputBeanId, "input-channel":inputChannel, "output-channel":instruction.springIntegrationOutputChannel){
 				"int:header"(name:"messageID", expression:id){ }
 			}
 				
@@ -327,34 +523,38 @@ class XmlGenerator {
 		}
 	}
 	
-	def generateEventHandler(Instruction instruction){
+	def generateReceiveEventHandler(Instruction instruction){
 		def EventHandler eventHandler = instruction.springBean
 		def xml = new StreamingMarkupBuilder()
 		xml.useDoubleQuotes = true
-		if(eventHandler.input != null){
-			if(eventHandler.input.adapter instanceof HttpAdapter){
-				def inputName = eventHandler.name
-				def outputName = instruction.variable
-				return xml.bind(inputHttpAdapterContext(inputName, outputName))
-				//BufferedWriter file = springApplicationContext.newWriter()
-				//xml.bind(inputHttpAdapterContext(inputName)).writeTo( file )
-			}
-		} 
-		if(eventHandler.output != null){
-			if(eventHandler.output.adapter instanceof DatabaseAdapter){
-				def inputName = instruction.variable
-				return xml.bind(outputDatabaseAdapterContext(inputName,eventHandler))
-				//BufferedWriter file = springApplicationContext.newWriter()
-				//xml.bind(outputDatabaseAdapterContext(eventHandler)).writeTo( file )
-			}
-		}
 		
+		if(eventHandler.input.adapter instanceof HttpAdapter){
+				
+			return xml.bind(inputHttpAdapterContext(instruction))
+				
+		} 
 	}
 
+	def generateSendEventHandler(Instruction instruction){
+		def EventHandler eventHandler = instruction.springBean
+		def xml = new StreamingMarkupBuilder()
+		xml.useDoubleQuotes = true
+
+		if(eventHandler.output.adapter instanceof DatabaseAdapter){
+				
+			return xml.bind(outputDatabaseAdapterContext(instruction))
+		
+		}	
+	}
+	
 	def outputDatabaseAdapterContext = {
-		String inputName, EventHandler eventHandler ->
-		def outputChannel = inputName + 'OutputChannel'
-		def transformerBean = outputChannel + "TransformerBean"
+		Instruction instruction ->
+		def inputName = instruction.variable
+		EventHandler eventHandler = instruction.springBean
+		//String inputName, EventHandler eventHandler ->
+		//instruction.springIntegrationInputChannel = inputName + 'OutputChannel'
+		//def outputChannel = inputName + 'OutputChannel'
+		def transformerBean = instruction.springIntegrationInputChannel + "TransformerBean"
 		def databaseChannel = inputName + 'DatabaseChannel'
 		def dataSourceBeanID = eventHandler.name + "DataSource"
 		def dataSource = "org.springframework.jdbc.datasource.DriverManagerDataSource"
@@ -364,9 +564,10 @@ class XmlGenerator {
 		def password = eventHandler.output.adapter.dataSource.password
 		def request = eventHandler.output.adapter.request
 		def persitSpelSource = eventHandler.name + 'PersitSpelSource'
+		instruction.springIntegrationInputBeanId = "transformer-"+instruction.springIntegrationInputChannel+"-id" 
 		def clos = {
 	
-			"int:transformer"(id:"transformer-"+outputChannel+"-id", "input-channel":outputChannel, "output-channel":databaseChannel, ref:transformerBean, "method":"transform"){ }
+			"int:transformer"(id:instruction.springIntegrationInputBeanId, "input-channel":instruction.springIntegrationInputChannel, "output-channel":databaseChannel, ref:transformerBean, "method":"transform"){ }
 			
 			"bean"(id:transformerBean, class:"org.olabdynamics.compose.tools.code.ApplicationToObjectTransformer"){
 			}
@@ -380,7 +581,7 @@ class XmlGenerator {
 	
 			"int:channel"(id:databaseChannel){ }
 			
-			"int-jdbc:outbound-channel-adapter"(id:"outbound-channel-adapter-"+outputChannel+"-id", "data-source":dataSourceBeanID, channel:databaseChannel, query:request, "sql-parameter-source-factory":persitSpelSource){ }
+			"int-jdbc:outbound-channel-adapter"(id:"outbound-channel-adapter-"+instruction.springIntegrationInputChannel+"-id", "data-source":dataSourceBeanID, channel:databaseChannel, query:request, "sql-parameter-source-factory":persitSpelSource){ }
 			
 			"bean"(id:persitSpelSource, class:"org.springframework.integration.jdbc.ExpressionEvaluatingSqlParameterSourceFactory"){
 				"property"(name:"parameterExpressions"){
@@ -392,12 +593,12 @@ class XmlGenerator {
 		}
 	}
 	
-	def generateAggregator(Aggregator aggregator){
+	def generateAggregator(Aggregator aggregator, def instructions){
 		def xml = new StreamingMarkupBuilder()
 		xml.useDoubleQuotes = true
 		//BufferedWriter file = springApplicationContext.newWriter()
 		//xml.bind(aggregatorContext(aggregator)).writeTo( file )
-		return xml.bind(aggregatorContext(aggregator))
+		return xml.bind(aggregatorContext(aggregator, instructions))
 	}
 
 	def releaseExpression(String expression, def applicationNames){
@@ -439,7 +640,8 @@ class XmlGenerator {
 	}
 	
 	def aggregatorContext = {
-		Aggregator aggregator ->
+		Aggregator aggregator, def instructions ->
+		
 		def aggregatorName = ""
 		def applicationNames = []
 		aggregator.applications.each{
@@ -447,13 +649,26 @@ class XmlGenerator {
 			aggregatorName = aggregatorName + it.name
 		}
 		
-		def inputChannel = aggregatorName + "AggregatorInput"
+		//def inputChannel = aggregatorName + "AggregatorInput"
+		
+		def inputChannel = aggregator.springIntegrationInputChannel
+		
 		def outputChannel = aggregatorName + "AggregatorOutput"
 		def outputTransformerChannel = aggregatorName + "AggregatorOutputTransformer"
+		
+		aggregator.springIntegrationOutputChannel = outputTransformerChannel
+		
+		int i=0;
+		while(i<instructions.size() && instructions.get(i)!=aggregator.nextInstruction){
+			i++
+		}
+		
+		instructions.get(i).springIntegrationInputChannel = outputTransformerChannel
+		
 		def releaseExpression = this.releaseExpression(aggregator.releaseExpression, applicationNames)
 		def size = "size()=="  + aggregator.applications.size()
 		releaseExpression = size + " and " + "(" + releaseExpression + ")"
-		//def releaseExpression = size + " AND " + "([0].payload instanceof T(org.olabdynamics.compose.Application) AND [0].payload.state==T(org.olabdynamics.compose.State).TERMINATED)"
+		//def releaseExpression = size + " AND " + "([0].paload instanceof T(org.olabdynamics.compose.Application) AND [0].payload.state==T(org.olabdynamics.compose.State).TERMINATED)"
 		def nextIntruction = aggregator.nextInstruction.variable
 		def transformerExpression = "(payload[0] instanceof T(org.olabdynamics.compose.Application) AND payload[0].name=='" + nextIntruction + "') ? payload[0] : payload[1]"
 		def clos = {
@@ -467,7 +682,7 @@ class XmlGenerator {
 		}
 	}
 	
-	def generateRouter(Instruction instruction){
+	/*def generateRouter(Instruction instruction){
 		def EventHandler eventHandler = instruction.springBean
 		def xml = new StreamingMarkupBuilder()
 		xml.useDoubleQuotes = true
@@ -477,9 +692,76 @@ class XmlGenerator {
 				return xml.bind(routerContext(inputName))
 			}
 		} 
+	}*/
+	
+	def generateRouterForEventHandlers(def instructions){
+		def xml = new StreamingMarkupBuilder()
+		xml.useDoubleQuotes = true
+		return xml.bind(routerForEventHandlersVariable(instructions))
 	}
 	
-	def routerContext = {
+	def routerForEventHandlersVariable = {
+		def instructions ->
+		def firstInstruction = instructions[0]
+		def inputName = firstInstruction.variable	// all instructions should have the same variable
+		//def inputChannel = inputName + 'Channel'
+		def id = "router-"+firstInstruction.springBean.name+"Channel-id"
+		def inputChannel = firstInstruction.springIntegrationOutputChannel
+		
+		//Instruction instruction
+		//def instructs
+		
+		def clos = {
+			
+			int i=0
+			
+			"int:recipient-list-router"(id:id, "input-channel":inputChannel){
+				
+				instructions.each{
+					
+					//it.springIntegrationInputChannel = inputChannel
+					//it.springIntegrationInputBeanId = id
+					
+					if(it.with != null){
+						String selectorExpression = it.with.replaceFirst(it.variable,"payload")
+						"int:recipient"(channel:inputChannel + "Route" + (i+1), "selector-expression":selectorExpression){ }
+					} else {
+						"int:recipient"(channel:inputChannel + "Route" + (i+1)){ }
+					}	
+					i++
+				}
+			}
+			
+			//instructs = instructions.iterator()
+			i=0
+			instructions.each{
+						
+				"int:channel"(id:inputChannel + "Route" + (i+1)){
+				}
+				
+				def outputChannel = inputChannel + "Route" + (i+1) + "Output"
+				it.springIntegrationOutputChannel = outputChannel
+				it.springIntegrationOutputBeanId = "router-"+inputChannel + "Route" + (i+1) + "-id"
+						
+				"int:recipient-list-router"(id:it.springIntegrationOutputBeanId, "input-channel":inputChannel + "Route" + (i+1)){
+					"int:recipient"(channel:outputChannel){ }
+					"int:recipient"(channel:inputChannel + "Route" + (i+1) + "ComposeEventRoute"){ }
+				}
+						
+				"int:channel"(id:inputChannel + "Route" + (i+1) + "ComposeEventRoute"){
+				}
+						
+				"int:transformer"("input-channel":inputChannel + "Route" + (i+1) + "ComposeEventRoute", "output-channel":"composeEventChannel"){
+					"int-script:script"(lang:"groovy", location:"#{createIncomingMessageEvent.input.adapter.file}"){  }
+				}
+					
+				i++
+			}
+				
+		}
+	}
+	
+/*	def routerContext = {
 		String inputName ->
 		def inputChannel = inputName + 'Channel'
 		def clos = {
@@ -503,5 +785,5 @@ class XmlGenerator {
 				"int-script:script"(lang:"groovy", location:"#{createIncomingMessageEvent.input.adapter.file}"){  }
 			}
 		}
-	}
+	}*/
 }

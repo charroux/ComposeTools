@@ -21,7 +21,7 @@ class Compile implements CommandLineRunner{
 		def visitor = new ComposeCodeVisitor(context: context)
 		def myCL = new MyClassLoader(visitor: visitor)
 		
-		def uri = new URI("file:///C:/Users/Charroux_std/Documents/projet/ExecAndShare/Compose/ComposeTools/ComposeTools/src/main/compose/Code2.groovy")
+		def uri = new URI("file:///C:/Users/Charroux_std/Documents/projet/ExecAndShare/Compose/ComposeTools/ComposeTools/src/main/compose/Code3.groovy")
 		def script = myCL.parseClass(new GroovyCodeSource(uri))
 		
 		//def xmlSpringContent = "./src/main/resources/QoSSpringContext.xml"

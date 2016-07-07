@@ -12,6 +12,11 @@ class Instruction {
 	def variableProperty	//													result of code1
 	def springBean			// EventHandler of receive		code1 of compute	EventHandler of receive
 	def with				// event.state=0				event
-	def withProperty		//								event.value			
+	def withProperty		//								event.value		
+	def springIntegrationOutputChannel	
+	def springIntegrationOutputBeanId
+	def springIntegrationInputChannel
+	def springIntegrationInputBeanId
+	
 
 }
