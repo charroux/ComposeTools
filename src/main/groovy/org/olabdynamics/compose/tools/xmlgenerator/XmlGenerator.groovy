@@ -665,6 +665,21 @@ class XmlGenerator {
 		
 		instructions.get(i).springIntegrationInputChannel = outputTransformerChannel
 		
+		def with = ""
+		boolean sameEvent = true
+		
+		aggregator.applications.each{
+			i=0;
+			while(i<instructions.size() && instructions.get(i).springBean.name!=it.name){
+				i++
+			}
+			if(with == ""){
+				with = instructions.get(i).with
+			} else if(with != instructions.get(i).with){
+				sameEvent = false 
+			}
+		}
+		
 		def releaseExpression = this.releaseExpression(aggregator.releaseExpression, applicationNames)
 		def size = "size()=="  + aggregator.applications.size()
 		releaseExpression = size + " and " + "(" + releaseExpression + ")"
@@ -673,8 +688,14 @@ class XmlGenerator {
 		def transformerExpression = "(payload[0] instanceof T(org.olabdynamics.compose.Application) AND payload[0].name=='" + nextIntruction + "') ? payload[0] : payload[1]"
 		def clos = {
 	
-			"int:aggregator"(id:"aggregator-"+inputChannel+"-id", "input-channel":inputChannel, "output-channel": outputChannel, "correlation-strategy-expression":"headers['messageID']", "release-strategy-expression":releaseExpression){
+			if(sameEvent == true){
+				"int:aggregator"(id:"aggregator-"+inputChannel+"-id", "input-channel":inputChannel, "output-channel": outputChannel, "correlation-strategy-expression":"headers['messageID']", "release-strategy-expression":releaseExpression){
+				}
+			} else {
+				"int:aggregator"(id:"aggregator-"+inputChannel+"-id", "input-channel":inputChannel, "output-channel": outputChannel, "correlation-strategy-expression":"0", "release-strategy-expression":releaseExpression){
+				}
 			}
+			
 		    
 			"int:transformer"(id:"transformer-"+outputChannel+"-id", "input-channel":outputChannel, "output-channel":outputTransformerChannel, expression:transformerExpression){	} 
 		
@@ -717,6 +738,8 @@ class XmlGenerator {
 			
 			"int:recipient-list-router"(id:id, "input-channel":inputChannel){
 				
+				boolean  defaultChannel = true
+				
 				instructions.each{
 					
 					//it.springIntegrationInputChannel = inputChannel
@@ -726,10 +749,16 @@ class XmlGenerator {
 						String selectorExpression = it.with.replaceFirst(it.variable,"payload")
 						"int:recipient"(channel:inputChannel + "Route" + (i+1), "selector-expression":selectorExpression){ }
 					} else {
+						defaultChannel = false
 						"int:recipient"(channel:inputChannel + "Route" + (i+1)){ }
 					}	
 					i++
 				}
+				
+				if(defaultChannel == true){
+					"int:recipient"(channel:"errorChannel"){ }
+				}
+				
 			}
 			
 			//instructs = instructions.iterator()

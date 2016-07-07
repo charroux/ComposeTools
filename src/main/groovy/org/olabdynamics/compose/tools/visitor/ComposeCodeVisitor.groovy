@@ -6,8 +6,10 @@ import org.codehaus.groovy.ast.expr.ArgumentListExpression;
 import org.codehaus.groovy.ast.expr.ConstantExpression;
 import org.codehaus.groovy.ast.expr.Expression
 import org.codehaus.groovy.ast.expr.MethodCallExpression;
+import org.codehaus.groovy.ast.expr.NotExpression
 import org.codehaus.groovy.ast.expr.PropertyExpression;
 import org.codehaus.groovy.ast.expr.VariableExpression;
+import org.codehaus.groovy.ast.stmt.Statement
 import org.codehaus.groovy.control.SourceUnit;
 import org.olabdynamics.compose.Application
 import org.springframework.beans.factory.annotation.Autowired;
@@ -50,15 +52,15 @@ class ComposeCodeVisitor extends ClassCodeVisitorSupport{
 		return applications
 	}
 
-	void visitVariableExpression(VariableExpression expression) {
+/*	void visitVariableExpression(VariableExpression expression) {
 		super.visitVariableExpression(expression)
 		log.info "visitVariableExpression = " + expression
-	}
+	}*/
 	
-	void visitArgumentlistExpression(ArgumentListExpression expression){
+/*	void visitArgumentlistExpression(ArgumentListExpression expression){
 		super.visitArgumentlistExpression(expression)
 		log.info "visitArgumentlistExpression = " + expression
-	}
+	}*/
 	
 /*	void visitPropertyExpression(PropertyExpression propertyExpression){
 		
@@ -108,6 +110,9 @@ class ComposeCodeVisitor extends ClassCodeVisitorSupport{
 		}	
 	}*/
 
+	void visitConstantExpression(ConstantExpression expression){
+		log.info "debut"
+	}	
 	
 	/**
 	 * méthode qui appelle la classe de création de fichier xml
