@@ -388,10 +388,14 @@ class XmlGenerator {
 		className = className.substring(className.lastIndexOf('.')+1)
 		className = className.substring(0,1).toLowerCase() + className.substring(1)
 		def expression = '@' + className + '.' + methodName + '(payload)'
-			
+		
 		int i=0
-		while(i<instructions.size() && instructions.get(i).variable!=instruction.with){
+		while(i<instructions.size() && instructions.get(i)!=instruction){
 			i++
+		}
+		
+		while(i>=0 && instructions.get(i).variable!=instruction.with){
+			i--
 		}
 		
 		def instructionToConnectToTheInput = instructions.get(i)
