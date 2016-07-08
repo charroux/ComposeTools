@@ -379,7 +379,7 @@ class XmlGenerator {
 	def localApplicationContext = {
 		Instruction instruction, def instructions, def aggregators ->
 		
-		def inputName = instruction.with
+		def inputName = instruction.withs[0].with
 		//def Application application = instruction.springBean
 		def applicationName = instruction.springBean.name
 		def methodName = instruction.springBean.input.adapter.method
@@ -389,14 +389,31 @@ class XmlGenerator {
 		className = className.substring(0,1).toLowerCase() + className.substring(1)
 		def expression = '@' + className + '.' + methodName + '(payload)'
 		
+		// look for the index i of the current instruction into all the inctructions
 		int i=0
 		while(i<instructions.size() && instructions.get(i)!=instruction){
 			i++
 		}
 		
-		while(i>=0 && instructions.get(i).variable!=instruction.with){
+		// search the previous instruction (decrease i) so its variable matches one of the withs of the current instruction
+		
+		while(i>=0 && instruction.containsWith(instructions.get(i).variable)==false){
 			i--
 		}
+		/*boolean stop = false
+		
+		while(i>=0 && stop==false){
+			int j=0
+			while(j<instruction.withs.size() && instruction.withs.get(j).with!=instructions.get(i).variable){
+				j++
+			}
+			if(j <  instruction.withs.size()){
+				stop = true
+			} else {
+				i--
+			}
+			
+		}*/
 		
 		def instructionToConnectToTheInput = instructions.get(i)
 		
@@ -669,6 +686,9 @@ class XmlGenerator {
 		
 		instructions.get(i).springIntegrationInputChannel = outputTransformerChannel
 		
+		// if the same event is used by the aggregator the release strategy should be based on the same message id :
+		// look for the with clause of all the instructions leading to the aggregator
+		 
 		def with = ""
 		boolean sameEvent = true
 		
@@ -678,8 +698,8 @@ class XmlGenerator {
 				i++
 			}
 			if(with == ""){
-				with = instructions.get(i).with
-			} else if(with != instructions.get(i).with){
+				with = instructions.get(i).withs.get(0)
+			} else if(instructions.get(i).containsWith(with) == false){
 				sameEvent = false 
 			}
 		}
@@ -749,8 +769,8 @@ class XmlGenerator {
 					//it.springIntegrationInputChannel = inputChannel
 					//it.springIntegrationInputBeanId = id
 					
-					if(it.with != null){
-						String selectorExpression = it.with.replaceFirst(it.variable,"payload")
+					if(it.whose != null){
+						String selectorExpression = it.whose.replaceFirst(it.variable,"payload")
 						"int:recipient"(channel:inputChannel + "Route" + (i+1), "selector-expression":selectorExpression){ }
 					} else {
 						defaultChannel = false

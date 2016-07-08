@@ -237,18 +237,24 @@ class ComposeCodeVisitor extends ClassCodeVisitorSupport{
 					} else if(method == 'to'){
 						instruction.springBean = context.getBean(arg)		// arg instanceof EventHandler
 						//instructions.add(context.getBean(arg))		// arg instanceof EventHandler
+					} else if(method == 'with'){
+						def with = new Instruction.With()
+						with.with = arg
+						instruction.withs.add(with)
 					}
-					
 				}
 				if(expression instanceof PropertyExpression){
 					PropertyExpression propertyExpression = (PropertyExpression)expression
 					expression = propertyExpression.getObjectExpression()
+					
+					def with = new Instruction.With()
+					
 					if(expression instanceof VariableExpression){
 						VariableExpression variableExpression = (VariableExpression)expression
 						def prop = variableExpression.getText()		// event
 						log.info prop + " PropertyVariableExpression"
 						if(method == 'with'){
-							instruction.with = prop
+							with.with = prop  
 						}
 					}
 					expression = propertyExpression.getProperty()
@@ -257,21 +263,23 @@ class ComposeCodeVisitor extends ClassCodeVisitorSupport{
 						def value = constantExpression.getText() // event.value
 						log.info value + " PropertyValueExpression"
 						if(method == 'with'){
-							instruction.withProperty = value
+							//instruction.withProperty = value
+							with.withProperty = value
+							instruction.withs.add(with)
 						}
 					}
 				} else if(expression instanceof ConstantExpression){
 					ConstantExpression constantExpression = (ConstantExpression)expression
 					def m = constantExpression.getText()
 					log.info m	+ " incomingMessageEvent.state=INCOMING_MESSAGE ConstantExpression" // receive event with constantExpression
-					if(method == 'with'){
-						instruction.with = m
+					if(method == 'whose'){
+						instruction.whose = m
 					}
 				}
 			}
 		}
 		
-		if(method=='compute' || method=='with' || method=='from' || method=='to'){
+		if(method=='compute' || method=='with' || method=='whose' ||method=='from' || method=='to'){
 			instructions.add(instruction)
 			if(aggregateInstruction == true){
 				int index = aggregators.size()-1
