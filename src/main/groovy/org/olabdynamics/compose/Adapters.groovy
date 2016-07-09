@@ -31,6 +31,7 @@ enum BidirectionalAdapter{
 class FileAdapter{
 	def adapter = UnidirectionalAdapter.File
 	def directory
+	def filenamePattern
 }
 
 @ToString

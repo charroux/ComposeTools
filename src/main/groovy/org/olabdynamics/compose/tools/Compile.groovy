@@ -21,11 +21,12 @@ class Compile implements CommandLineRunner{
 		def visitor = new ComposeCodeVisitor(context: context)
 		def myCL = new MyClassLoader(visitor: visitor)
 		
-		def uri = new URI("file:///C:/Users/Charroux_std/Documents/projet/ExecAndShare/Compose/ComposeTools/ComposeTools/src/main/compose/Code3.groovy")
+		def uri = new URI("file:///C:/Users/Charroux_std/Documents/projet/ExecAndShare/Compose/ComposeTools/ComposeTools/src/main/compose/Code5.groovy")
 		def script = myCL.parseClass(new GroovyCodeSource(uri))
 		
 		//def xmlSpringContent = "./src/main/resources/QoSSpringContext.xml"
 		//def xmlSpringContent = "./src/main/resources/essai.xml"
+		//def xmlSpringContent = "./src/main/resources/xmlSpringContext.xml"
 		def xmlSpringContent = "./src/main/resources/xmlSpringContext.xml"
 		
 		def xmlGenerator = new XmlGenerator(xmlSpringContent: xmlSpringContent, instructions: visitor.instructions, aggregators: visitor.aggregators)
@@ -33,6 +34,8 @@ class Compile implements CommandLineRunner{
 		
 		def javaCodeGenerator = new JavaCodeGenerator(context: context, instructions: visitor.instructions)
 		javaCodeGenerator.generate()
+		
+		
 	}
 
 }

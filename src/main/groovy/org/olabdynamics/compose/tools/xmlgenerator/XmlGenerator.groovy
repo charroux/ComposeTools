@@ -8,6 +8,7 @@ import groovy.xml.XmlUtil
 import org.olabdynamics.compose.Application
 import org.olabdynamics.compose.DatabaseAdapter
 import org.olabdynamics.compose.EventHandler
+import org.olabdynamics.compose.FileAdapter
 import org.olabdynamics.compose.HttpAdapter
 import org.olabdynamics.compose.Input
 import org.olabdynamics.compose.JavaServiceAdapter
@@ -27,7 +28,7 @@ class XmlGenerator {
 	void generate(){
 
 		BufferedWriter bufferedWriter = new BufferedWriter(new FileWriter(new File(xmlSpringContent)))
-		bufferedWriter.writeLine('<beans xmlns="http://www.springframework.org/schema/beans" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:int="http://www.springframework.org/schema/integration" xmlns:int-http="http://www.springframework.org/schema/integration/http" xmlns:int-groovy="http://www.springframework.org/schema/integration/groovy" xmlns:context="http://www.springframework.org/schema/context" xmlns:task="http://www.springframework.org/schema/task" xmlns:jdbc="http://www.springframework.org/schema/jdbc" xmlns:int-jdbc="http://www.springframework.org/schema/integration/jdbc" xmlns:int-script="http://www.springframework.org/schema/integration/scripting" xmlns:int-event="http://www.springframework.org/schema/integration/event" xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd http://www.springframework.org/schema/task http://www.springframework.org/schema/task/spring-task.xsd http://www.springframework.org/schema/integration http://www.springframework.org/schema/integration/spring-integration-4.2.xsd http://www.springframework.org/schema/integration/jdbc http://www.springframework.org/schema/integration/jdbc/spring-integration-jdbc-4.2.xsd http://www.springframework.org/schema/jdbc http://www.springframework.org/schema/jdbc/spring-jdbc-4.2.xsd http://www.springframework.org/schema/integration/http http://www.springframework.org/schema/integration/http/spring-integration-http-4.2.xsd http://www.springframework.org/schema/integration/groovy http://www.springframework.org/schema/integration/groovy/spring-integration-groovy-4.2.xsd http://www.springframework.org/schema/integration/scripting http://www.springframework.org/schema/integration/scripting/spring-integration-scripting-4.2.xsd http://www.springframework.org/schema/integration/event http://www.springframework.org/schema/integration/event/spring-integration-event-4.2.xsd">')
+		bufferedWriter.writeLine('<beans xmlns="http://www.springframework.org/schema/beans" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:int="http://www.springframework.org/schema/integration" xmlns:int-file="http://www.springframework.org/schema/integration/file" xmlns:int-http="http://www.springframework.org/schema/integration/http" xmlns:int-groovy="http://www.springframework.org/schema/integration/groovy" xmlns:context="http://www.springframework.org/schema/context" xmlns:task="http://www.springframework.org/schema/task" xmlns:jdbc="http://www.springframework.org/schema/jdbc" xmlns:int-jdbc="http://www.springframework.org/schema/integration/jdbc" xmlns:int-script="http://www.springframework.org/schema/integration/scripting" xmlns:int-event="http://www.springframework.org/schema/integration/event" xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd http://www.springframework.org/schema/task http://www.springframework.org/schema/task/spring-task.xsd http://www.springframework.org/schema/integration http://www.springframework.org/schema/integration/spring-integration-4.2.xsd http://www.springframework.org/schema/integration/file http://www.springframework.org/schema/integration/file/spring-integration-file-4.2.xsd http://www.springframework.org/schema/integration/jdbc http://www.springframework.org/schema/integration/jdbc/spring-integration-jdbc-4.2.xsd http://www.springframework.org/schema/jdbc http://www.springframework.org/schema/jdbc/spring-jdbc-4.2.xsd http://www.springframework.org/schema/integration/http http://www.springframework.org/schema/integration/http/spring-integration-http-4.2.xsd http://www.springframework.org/schema/integration/groovy http://www.springframework.org/schema/integration/groovy/spring-integration-groovy-4.2.xsd http://www.springframework.org/schema/integration/scripting http://www.springframework.org/schema/integration/scripting/spring-integration-scripting-4.2.xsd http://www.springframework.org/schema/integration/event http://www.springframework.org/schema/integration/event/spring-integration-event-4.2.xsd">')
 		
 		def xmlForEvents = generateComposeEventManagement()
 		
@@ -544,16 +545,43 @@ class XmlGenerator {
 		}
 	}
 	
+	def inputFileAdapterContext = {
+		Instruction instruction ->
+		def inputName = instruction.springBean.name
+		def inputChannel = inputName + 'InputChannel'
+		def outputChannel = inputName + "OutputChannel"
+		instruction.springIntegrationOutputChannel = outputChannel
+		instruction.springIntegrationOutputBeanId = "header-enricher-"+inputChannel+"-id"
+		def id = "headers['id'].toString()"
+		def clos = {
+	
+			"int-file:inbound-channel-adapter"(id:"file-"+inputChannel+"-id", directory:instruction.springBean.input.adapter.directory, channel:inputChannel, "prevent-duplicates":"true", "filename-pattern":instruction.springBean.input.adapter.filenamePattern){
+				"int:poller"(id:"poller-"+inputChannel+"-id", "fixed-delay":"1000"){
+				}
+			}
+
+			"int-file:file-to-string-transformer"("input-channel":inputChannel, "output-channel":inputChannel+"Transformer", "delete-files":"false"){
+			}
+			
+			"int:header-enricher"(id:instruction.springIntegrationOutputBeanId, "input-channel":inputChannel+"Transformer", "output-channel":instruction.springIntegrationOutputChannel){
+				"int:header"(name:"messageID", expression:id){ }
+			}
+				   
+		}
+	}
+	
 	def generateReceiveEventHandler(Instruction instruction){
 		def EventHandler eventHandler = instruction.springBean
 		def xml = new StreamingMarkupBuilder()
 		xml.useDoubleQuotes = true
 		
-		if(eventHandler.input.adapter instanceof HttpAdapter){
-				
+		if(eventHandler.input.adapter instanceof HttpAdapter){		
 			return xml.bind(inputHttpAdapterContext(instruction))
-				
-		} 
+		} else if(eventHandler.input.adapter instanceof FileAdapter){		
+			return xml.bind(inputFileAdapterContext(instruction))
+		} else {
+			throw new CompilationException(eventHandler + " not supported yet.")
+		}
 	}
 
 	def generateSendEventHandler(Instruction instruction){

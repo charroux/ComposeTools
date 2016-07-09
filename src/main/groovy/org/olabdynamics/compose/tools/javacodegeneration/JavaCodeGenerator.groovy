@@ -3,6 +3,7 @@ package org.olabdynamics.compose.tools.javacodegeneration
 import groovy.util.logging.Slf4j;
 
 import org.olabdynamics.compose.EventHandler
+import org.olabdynamics.compose.HttpAdapter
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext
 import org.springframework.web.bind.annotation.RequestMethod
@@ -33,10 +34,31 @@ class JavaCodeGenerator {
 		
 		log.info "generate Java Code"
 		
+		File outputDirectory = new File("./src/main/java/generated")
+		File[] files = outputDirectory.listFiles();
+		if(files!=null) { //some JVMs return null for empty dirs
+			for(File f: files) {
+				if(f.isDirectory()==false){
+					f.delete();
+				}
+			}
+		}
+		
+		outputDirectory = new File("./src/main/java/myservice")
+		files = outputDirectory.listFiles();
+		if(files!=null) { //some JVMs return null for empty dirs
+			for(File f: files) {
+				if(f.isDirectory()==false){
+					f.delete();
+				}
+			}
+		}
+		
 		instructions.each{
+					
 			if(it.instruction == 'receive'){
 				
-				if(it.springBean instanceof EventHandler){
+				if(it.springBean instanceof EventHandler && it.springBean.input.adapter instanceof HttpAdapter) {
 					 
 					// generate interface Gateway
 					def interfaceName = it.springBean.name
@@ -76,12 +98,11 @@ class JavaCodeGenerator {
 					log.info className  + " generated"
 					
 					// main spring boot
-					codeModel = new JCodeModel();
+/*					codeModel = new JCodeModel();
 					className = 'generated.' + "MainApplication"
 					JDefinedClass mainClass = codeModel._class(JMod.PUBLIC, className, ClassType.CLASS)
 					mainClass.annotate(SpringBootApplication.class)
-					mainClass.annotate(ImportResource.class)
-					
+					mainClass.annotate(ImportResource.class)*/
 					
 				}
 			}

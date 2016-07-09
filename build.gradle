@@ -1,9 +1,26 @@
+buildscript {
+	repositories {
+		mavenCentral()
+	}
+	dependencies {
+		classpath("org.springframework.boot:spring-boot-gradle-plugin:1.3.6.RELEASE")
+	}
+}
+
 apply plugin: 'java' 
 apply plugin: 'eclipse' 
 apply plugin: 'groovy'
+apply plugin: 'spring-boot'
 
 repositories {
-    mavenCentral()
+	mavenCentral()
+}
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+springBoot {
+	mainClass = "org.olabdynamics.compose.tools.Compiler"
 }
 
 dependencies {
@@ -15,11 +32,12 @@ dependencies {
 	compile("org.springframework:spring-tx")
 	compile("org.springframework.boot:spring-boot-devtools:1.3.5.RELEASE")
 	
-	compile group: 'org.slf4j', name:'slf4j-api', version: '1.6.4'
+	compile group: 'org.slf4j', name:'slf4j-api', version: '1.7.21'
 	
 	compile group: 'com.sun.codemodel', name: 'codemodel', version: '2.6'
 	
 	compile 'org.springframework.integration:spring-integration-core:4.2.4.RELEASE'
+	compile 'org.springframework.integration:spring-integration-file:4.2.4.RELEASE'
 	compile 'org.springframework.integration:spring-integration-http:4.2.4.RELEASE'
 	compile 'org.springframework.integration:spring-integration-jdbc:4.2.4.RELEASE'
 	compile 'org.springframework.integration:spring-integration-event:4.2.4.RELEASE'
