@@ -34,7 +34,8 @@ class JavaCodeGenerator {
 		
 		log.info "generate Java Code"
 		
-		File outputDirectory = new File("./src/main/java/generated")
+		String s = "." + File.separator + "src" + File.separator + "main" + File.separator + "java" + File.separator + "generated"
+		File outputDirectory = new File(s)
 		File[] files = outputDirectory.listFiles();
 		if(files!=null) { //some JVMs return null for empty dirs
 			for(File f: files) {
@@ -44,9 +45,10 @@ class JavaCodeGenerator {
 			}
 		}
 		
-		log.info "empty ./src/main/java/generated"
+		log.info "empty " + s 
 		
-		outputDirectory = new File("./src/main/java/myservice")
+		s = "." + File.separator + "src" + File.separator + "main" + File.separator + "java" + File.separator + "myservice"
+		outputDirectory = new File(s)
 		files = outputDirectory.listFiles();
 		if(files!=null) { //some JVMs return null for empty dirs
 			for(File f: files) {
@@ -56,7 +58,7 @@ class JavaCodeGenerator {
 			}
 		}
 		
-		log.info "empty ./src/main/java/myservice"
+		log.info "empty " + s 
 		
 		instructions.each{
 					
@@ -72,7 +74,9 @@ class JavaCodeGenerator {
 					JDefinedClass gateWayInterface = codeModel._class(JMod.PUBLIC, interfaceName, ClassType.INTERFACE)
 					JMethod method = gateWayInterface.method(JMod.PUBLIC, void.class, "method")
 					JVar param = method.param(Object.class, "object")
-					codeModel.build(new File("./src/main/java"))
+					s = "." + File.separator + "src" + File.separator + "main" + File.separator + "java"
+					//codeModel.build(new File("./src/main/java"))
+					codeModel.build(new File(s))
 					
 					log.info interfaceName  + " generated"
 					
@@ -97,7 +101,8 @@ class JavaCodeGenerator {
 					JBlock body = method.body();
 					body.add(gatewayInvocation)
 					
-					codeModel.build(new File("./src/main/java"))
+					//codeModel.build(new File("./src/main/java"))
+					codeModel.build(new File(s))
 					
 					log.info className  + " generated"
 					
