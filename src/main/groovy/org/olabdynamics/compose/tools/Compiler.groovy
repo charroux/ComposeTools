@@ -8,7 +8,7 @@ import org.springframework.context.annotation.ImportResource;
 
 @Configuration
 @EnableAutoConfiguration
-@ComponentScan(basePackages=['org.olabdynamics.compose.tools','myservice'])	
+@ComponentScan(basePackages=['org.olabdynamics.compose.tools','configuration'])	
 class Compiler {
 	
 	public static void main(String[] args) {
