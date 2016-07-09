@@ -44,6 +44,8 @@ class JavaCodeGenerator {
 			}
 		}
 		
+		log.info "empty ./src/main/java/generated"
+		
 		outputDirectory = new File("./src/main/java/myservice")
 		files = outputDirectory.listFiles();
 		if(files!=null) { //some JVMs return null for empty dirs
@@ -53,6 +55,8 @@ class JavaCodeGenerator {
 				}
 			}
 		}
+		
+		log.info "empty ./src/main/java/myservice"
 		
 		instructions.each{
 					
