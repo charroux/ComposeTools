@@ -26,7 +26,7 @@ sourceCompatibility = 1.8
 targetCompatibility = 1.8
 
 springBoot {
-	mainClass = "org.olabdynamics.compose.tools.Compiler"
+	mainClass = "org.olabdynamics.compose.main.Main"
 }
 
 dependencies {
@@ -64,4 +64,9 @@ sourceSets {
 			srcDir 'compose'
 		}
 	}
+}
+
+task compile(type: JavaExec) {
+	classpath = sourceSets.main.runtimeClasspath
+	main = 'org.olabdynamics.compose.tools.Compiler'
 }
