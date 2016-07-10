@@ -29,6 +29,11 @@ springBoot {
 	mainClass = "org.olabdynamics.compose.main.Main"
 }
 
+jar {
+	baseName = 'ComposeTools'
+	version =  'alpha-1.0'
+}
+
 dependencies {
 
 	compile 'org.codehaus.groovy:groovy-all:2.4.5'
@@ -69,4 +74,9 @@ sourceSets {
 task compile(type: JavaExec) {
 	classpath = sourceSets.main.runtimeClasspath
 	main = 'org.olabdynamics.compose.tools.Compiler'
+	if(project.hasProperty("composeFile")){
+		args Eval.me(composeFile)
+	}
+	//args 'Code4.groovy'
+	
 }

@@ -18,11 +18,16 @@ class Compile implements CommandLineRunner{
 	@Override
 	public void run(String... args) throws Exception {
 		
+		if(args.size() != 1){
+			throw new Exception("A compose source file (.groovy extension) should be in ./compose/source, put the file name (with no path) as a argument")
+		}
+		
 		def visitor = new ComposeCodeVisitor(context: context)
 		def myCL = new MyClassLoader(visitor: visitor)
 		
-		def uri = new URI("file:///C:/Users/Charroux_std/Documents/projet/ExecAndShare/Compose/ComposeTools/ComposeTools/src/main/compose/Code4.groovy")
-		def script = myCL.parseClass(new GroovyCodeSource(uri))
+		//def uri = new URI("file:///C:/Users/Charroux_std/Documents/projet/ExecAndShare/Compose/ComposeTools/ComposeTools/src/main/compose/Code4.groovy")
+		String pathToCode = "." + File.separator + "compose" + File.separator + "source" + File.separator + args[0]
+		def script = myCL.parseClass(new GroovyCodeSource(new File(pathToCode)))
 		
 		//def xmlSpringContent = "./src/main/resources/QoSSpringContext.xml"
 		//def xmlSpringContent = "./src/main/resources/essai.xml"
