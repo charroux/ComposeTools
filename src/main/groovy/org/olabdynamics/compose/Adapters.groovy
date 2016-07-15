@@ -28,10 +28,25 @@ enum BidirectionalAdapter{
 }
 
 @ToString
-class FileAdapter{
+class InputFileAdapter{
 	def adapter = UnidirectionalAdapter.File
 	def directory
 	def filenamePattern
+}
+
+enum WritingMode{
+	REPLACE,
+	APPEND
+}
+
+@ToString
+class OutputFileAdapter{
+	def adapter = UnidirectionalAdapter.File
+	def directory
+	boolean createDirectory
+	def filename
+	boolean appendNewLine
+	WritingMode writingMode
 }
 
 @ToString

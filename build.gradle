@@ -76,7 +76,10 @@ task compile(type: JavaExec) {
 	main = 'org.olabdynamics.compose.tools.Compiler'
 	if(project.hasProperty("composeFile")){
 		args Eval.me(composeFile)
-	}
-	//args 'Code4.groovy'
-	
+	}	
+}
+
+task restClient(type: JavaExec) {
+	classpath = sourceSets.main.runtimeClasspath
+	main = 'org.olabdynamics.compose.main.RestWebServiceClientTest'
 }

@@ -8,13 +8,16 @@ import groovy.xml.XmlUtil
 import org.olabdynamics.compose.Application
 import org.olabdynamics.compose.DatabaseAdapter
 import org.olabdynamics.compose.EventHandler
-import org.olabdynamics.compose.FileAdapter
 import org.olabdynamics.compose.HttpAdapter
 import org.olabdynamics.compose.Input
+import org.olabdynamics.compose.InputFileAdapter
 import org.olabdynamics.compose.JavaServiceAdapter
+import org.olabdynamics.compose.OutputFileAdapter
 import org.olabdynamics.compose.tools.visitor.Aggregator
 import org.olabdynamics.compose.tools.visitor.Instruction
 import org.springframework.context.ApplicationContext;
+import org.springframework.http.MediaType
+import org.springframework.integration.file.FileHeaders
 
 @Slf4j
 class XmlGenerator {
@@ -489,7 +492,7 @@ class XmlGenerator {
 			return xml.bind(localApplicationContext(instruction, instructions, aggregators))
 		} else {
 			def message = instruction.springBean.input.adapter + ' is not supported yet.'
-			throw new CompilationException(message)
+			throw new ComposeCompilationException(message)
 		}
 		/*def inputName = instruction.with
 		def Application application = instruction.springBean
@@ -563,8 +566,28 @@ class XmlGenerator {
 			"int-file:file-to-string-transformer"("input-channel":inputChannel, "output-channel":inputChannel+"Transformer", "delete-files":"false"){
 			}
 			
-			"int:header-enricher"(id:instruction.springIntegrationOutputBeanId, "input-channel":inputChannel+"Transformer", "output-channel":instruction.springIntegrationOutputChannel){
-				"int:header"(name:"messageID", expression:id){ }
+			String[] typeAndSubtype = instruction.springBean.input.mimeType.split("/");
+
+			if(typeAndSubtype.length != 2){
+				throw new ComposeCompilationException("Unknown Mime Type: " + instruction.springBean.input.mimeType)
+			}
+			
+			MediaType mediaType = new  MediaType(typeAndSubtype[0], typeAndSubtype[1])
+			
+			if(mediaType.equals(MediaType.APPLICATION_JSON)){
+			
+				"int:json-to-object-transformer"("input-channel":inputChannel+"Transformer", "output-channel":inputChannel+"JsonTransformer", type:instruction.springBean.input.type){  }
+				
+				"int:header-enricher"(id:instruction.springIntegrationOutputBeanId, "input-channel":inputChannel+"JsonTransformer", "output-channel":instruction.springIntegrationOutputChannel){
+					"int:header"(name:"messageID", expression:id){ }
+				}
+				
+			} else {	
+							
+				"int:header-enricher"(id:instruction.springIntegrationOutputBeanId, "input-channel":inputChannel+"Transformer", "output-channel":instruction.springIntegrationOutputChannel){
+					"int:header"(name:"messageID", expression:id){ }
+				}
+				
 			}
 				   
 		}
@@ -577,10 +600,10 @@ class XmlGenerator {
 		
 		if(eventHandler.input.adapter instanceof HttpAdapter){		
 			return xml.bind(inputHttpAdapterContext(instruction))
-		} else if(eventHandler.input.adapter instanceof FileAdapter){		
+		} else if(eventHandler.input.adapter instanceof InputFileAdapter){		
 			return xml.bind(inputFileAdapterContext(instruction))
 		} else {
-			throw new CompilationException(eventHandler + " not supported yet.")
+			throw new ComposeCompilationException(eventHandler + " not supported yet.")
 		}
 	}
 
@@ -589,11 +612,13 @@ class XmlGenerator {
 		def xml = new StreamingMarkupBuilder()
 		xml.useDoubleQuotes = true
 
-		if(eventHandler.output.adapter instanceof DatabaseAdapter){
-				
+		if(eventHandler.output.adapter instanceof DatabaseAdapter){		
 			return xml.bind(outputDatabaseAdapterContext(instruction))
-		
-		}	
+		} else  if(eventHandler.output.adapter instanceof OutputFileAdapter){		
+			return xml.bind(outputFileAdapterContext(instruction))
+		} else  {
+			throw new ComposeCompilationException(eventHandler + " not supported yet.")
+		}
 	}
 	
 	def outputDatabaseAdapterContext = {
@@ -641,7 +666,36 @@ class XmlGenerator {
 			}			   			
 		}
 	}
-	
+
+	def outputFileAdapterContext = {
+		Instruction instruction ->
+		def outputName = instruction.variable
+		EventHandler eventHandler = instruction.springBean
+		def transformerBean = instruction.springIntegrationInputChannel + "TransformerBean"
+		//instruction.springIntegrationOutputBeanId = "headerEnricher-"+instruction.springIntegrationInputChannel+"-id"
+		
+		def clos = {
+			
+			"int:transformer"(id:"transformer-"+instruction.springIntegrationInputChannel+"-id", "input-channel":instruction.springIntegrationInputChannel, "output-channel":outputName + "TransformerChannel", ref:transformerBean, "method":"transform"){ }
+			
+			"bean"(id:transformerBean, class:"org.olabdynamics.compose.tools.code.ApplicationToObjectTransformer"){
+			}
+			
+			"int:object-to-string-transformer"("input-channel":outputName + "TransformerChannel", "output-channel":outputName + "OutputFileChannelAdapter"){ }
+			
+			/*"int:header-enricher"(id:"headerEnricher-" + outputName + "-id", "input-channel":outputName + "StringTransformerChannel", "output-channel":outputName + "OutputFileChannelAdapter"){
+				"int:header"(name:FileHeaders.FILENAME, value:eventHandler.output.adapter.filename){ }
+			}*/
+
+			"int:channel"(id:outputName + "OutputFileChannelAdapter"){ }
+			
+			"int-file:outbound-channel-adapter"(id:"file-"+outputName+"Channel-id", channel:outputName + "OutputFileChannelAdapter", directory:eventHandler.output.adapter.directory, "filename-generator-expression":"'"+eventHandler.output.adapter.filename+"'", "append-new-line":eventHandler.output.adapter.appendNewLine, mode:eventHandler.output.adapter.writingMode.toString(), "auto-create-directory":eventHandler.output.adapter.createDirectory, "delete-source-files":"false"){
+				
+			}
+			
+		}
+	}
+
 	def generateAggregator(Aggregator aggregator, def instructions){
 		def xml = new StreamingMarkupBuilder()
 		xml.useDoubleQuotes = true

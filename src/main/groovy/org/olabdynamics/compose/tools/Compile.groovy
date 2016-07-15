@@ -29,10 +29,8 @@ class Compile implements CommandLineRunner{
 		String pathToCode = "." + File.separator + "compose" + File.separator + "source" + File.separator + args[0]
 		def script = myCL.parseClass(new GroovyCodeSource(new File(pathToCode)))
 		
-		//def xmlSpringContent = "./src/main/resources/QoSSpringContext.xml"
-		//def xmlSpringContent = "./src/main/resources/essai.xml"
 		//def xmlSpringContent = "./src/main/resources/xmlSpringContext.xml"
-		def xmlSpringContent = "./src/main/resources/xmlSpringContext.xml"
+		def xmlSpringContent = "." + File.separator + "src" + File.separator + "main" + File.separator + "resources" + File.separator + "xmlSpringContext.xml"
 		
 		def xmlGenerator = new XmlGenerator(xmlSpringContent: xmlSpringContent, instructions: visitor.instructions, aggregators: visitor.aggregators)
 		xmlGenerator.generate()
